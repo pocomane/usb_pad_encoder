@@ -17,9 +17,9 @@ The "SNES pad Arduino USB"'s Author, 2020
 
 // Config -------------------------------------------------------------------------
 
-#define AUTOFIRE_MODE      TOGGLE   // NONE, ASSIST, TOGGLE
+#define AUTOFIRE_MODE      ASSIST   // NONE, ASSIST, TOGGLE
 #define TAP_MAX_PERIOD     (200000) // us // used in any mode except none
-#define AUTOFIRE_PERIOD    (100000) // us // used in any mode except none
+#define AUTOFIRE_PERIOD    (75000) // us // used in any mode except none
 #define AUTOFIRE_TAP_COUNT (2)      // #  // used in assit mode
 #define AUTOFIRE_SELECTOR  SELECT   // button: SELECT, START, etc // used in toggle mode
 
