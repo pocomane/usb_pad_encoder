@@ -122,9 +122,9 @@ static int autofire_assist(int index, int is_pressed, int option) {
 
 #define TOGGLED_BUTTON_NUMBER 4
 static int autofire_toggle(int index, int is_pressed, int is_toggled) {
-  static unsigned long last_press[ ASSISTED_BUTTON_NUMBER ] = {0};
-  static int prev_toggle[ ASSISTED_BUTTON_NUMBER ] = {0};
-  static int autofire_enabled[ ASSISTED_BUTTON_NUMBER ] = {0};
+  static unsigned long last_press[ TOGGLED_BUTTON_NUMBER ] = {0};
+  static int prev_toggle[ TOGGLED_BUTTON_NUMBER ] = {0};
+  static int autofire_enabled[ TOGGLED_BUTTON_NUMBER ] = {0};
 
   // store current status for the next iterations
   int was_toggled = prev_toggle[index];
