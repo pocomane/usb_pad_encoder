@@ -42,6 +42,118 @@ The "SNES pad Arduino USB"'s Author, 2020
 #define CAT2(A, B) A ## B
 #define CAT(A, B)  CAT2(A, B)
 
+// USB HID wrapper ---------------------------------------------------------------------
+
+#include "HID.h"
+#if !defined(_USING_HID)
+#error "Arduino board does not support PluggubleHID module"
+#endif
+
+#define REPORTID (0x06)
+
+static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
+
+  // Gamepad
+  0x05, 0x01,        //  USAGE_PAGE (Generic Desktop)
+  0x09, 0x04,        //  USAGE (Joystick)
+  0xa1, 0x01,        //  COLLECTION (Application)
+
+    0x85, REPORTID,  //  REPORT_ID
+
+    // 8 Buttons
+    0x05, 0x09,        //  USAGE_PAGE (Button)
+      0x19, 0x01,        //  USAGE_MINIMUM (Button 1)
+      0x29, 0x08,        //  USAGE_MAXIMUM (Button 8)
+    0x15, 0x00,        //  LOGICAL_MINIMUM (0)
+    0x25, 0x01,        //  LOGICAL_MAXIMUM (1)
+    0x75, 0x01,        //  REPORT_SIZE (1)
+    0x95, 0x08,        //  REPORT_COUNT (8)
+    0x81, 0x02,        //  INPUT (Data,Var,Abs)
+
+    // 2 Hat Switches
+    0x05, 0x01,        //  USAGE_PAGE (Generic Desktop)
+    0x09, 0x39,        //  USAGE (Hat switch)
+    0x09, 0x39,        //  USAGE (Hat switch)
+      0x15, 0x01,        //  LOGICAL_MINIMUM (1)
+      0x25, 0x08,        //  LOGICAL_MAXIMUM (8)
+    0x95, 0x02,        //  REPORT_COUNT (2)
+    0x75, 0x04,        //  REPORT_SIZE (4)
+    0x81, 0x02,        //  INPUT (Data,Var,Abs)
+
+/*
+    // 4 16bit Axis
+    0x05, 0x01,        //   USAGE_PAGE (Generic Desktop)
+    0xa1, 0x00,        //   COLLECTION (Physical)
+    0x09, 0x30,        //   USAGE (X)
+    0x09, 0x31,        //   USAGE (Y)
+    0x09, 0x33,        //   USAGE (Rx)
+    0x09, 0x34,        //   USAGE (Ry)
+      0x16, 0x00, 0x80,  //   LOGICAL_MINIMUM (-32768)
+      0x26, 0xFF, 0x7F,  //   LOGICAL_MAXIMUM (32767)
+    0x75, 0x10,        //   REPORT_SIZE (16)
+    0x95, 0x04,        //   REPORT_COUNT (4)
+    0x81, 0x02,        //   INPUT (Data,Var,Abs)
+
+    // 2 8bit Axis
+    0x09, 0x32,        //  USAGE (Z)
+    0x09, 0x35,        //  USAGE (Rz)
+      0x15, 0x80,        //  LOGICAL_MINIMUM (-128)
+      0x25, 0x7F,        //  LOGICAL_MAXIMUM (127)
+    0x75, 0x08,        //  REPORT_SIZE (8)
+    0x95, 0x02,        //  REPORT_COUNT (2)
+    0x81, 0x02,        //  INPUT (Data,Var,Abs)
+    0xc0,              //  END_COLLECTION
+*/
+
+  0xc0               //  END_COLLECTION
+};
+
+typedef struct {
+
+  uint8_t button1  : 1;
+  uint8_t button2  : 1;
+  uint8_t button3  : 1;
+  uint8_t button4  : 1;
+  uint8_t button5  : 1;
+  uint8_t button6  : 1;
+  uint8_t button7  : 1;
+  uint8_t button8  : 1;
+
+  uint8_t	dPad1 : 4;
+  uint8_t	dPad2 : 4;
+
+/*
+  int16_t	xAxis;
+  int16_t	yAxis;
+
+  int16_t	rxAxis;
+  int16_t	ryAxis;
+
+  int8_t	zAxis;
+  int8_t	rzAxis;
+*/
+
+} gamepad_status_t;
+
+void gamepad_init(){
+
+  static HIDSubDescriptor node(gamepad_hid_descriptor, sizeof(gamepad_hid_descriptor));
+  HID().AppendDescriptor(&node);
+
+  LOG(1, "gamepad initialized\n", 0);
+}
+
+int gamepad_send(gamepad_status_t *status){
+
+  HID().SendReport(REPORTID, status, sizeof(*status));
+
+  LOG(1, "gamepad report state - %x %x %x %x | %x %x %x %x | %x %x \n",
+      status->button1, status->button2, status->button3, status->button4,
+      status->button5, status->button6, status->button7, status->button8,
+      status->dPad1, status->dPad2
+   );
+}
+
 // Common input-related routines ---------------------------------------------------------------------
 
 #define NUMBER_OF_BUTTONS   12
@@ -52,21 +164,25 @@ static unsigned long now_us = 0;
 static void next_time_step(void) { now_us = micros(); }
 static unsigned long current_time_step(void)  { return now_us; }
 
-static int dpad_angle(int up, int down, int left, int right) {
+static int dpad_value(int up, int down, int left, int right) {
   if (up) {
-    if (left) return 7 * 45;
-    else if (right) return 1 * 45;
-    else return 0 * 45;
+    if (left) return 8;
+    else if (right) return 2;
+    else return 1;
   } else if (down) {
-    if (left) return 5 * 45;
-    else if (right) return 3 * 45;
-    else return 4 * 45;
+    if (left) return 6;
+    else if (right) return 4;
+    else return 5;
   } else {
-    if (left) return 6 * 45;
-    else if (right) return 2 * 45;
-    else return -1; // -1 signals that the Hat was released
+    if (left) return 7;
+    else if (right) return 3;
+    else return 0;
   }
 }
+
+// If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
+// the file, resulting to invalid ones, since user types are not defined yet
+static button_state_t button_debounce(button_state_t button);
 
 static button_state_t button_debounce(button_state_t button) {
   // No debounce needed ? SNES HW should address it !
@@ -82,7 +198,7 @@ static int autofire_none(int index, int is_pressed, int option) {
 #define ASSISTED_BUTTON_NUMBER 4
 static int autofire_assist(int index, int is_pressed, int option) {
   if (index < 0 || index >= ASSISTED_BUTTON_NUMBER){
-    LOG("autofire not supported for button %d\n", index);
+    LOG(1, "autofire not supported for button %d\n", index);
     return is_pressed;
   }
   
@@ -172,17 +288,6 @@ static int autofire_toggle(int index, int is_pressed, int is_toggled) {
   #error "unsupported autofire mode"
 #endif
 
-// Common usb-related part ---------------------------------------------------------------------
-
-#include "Joystick.h"
-
-Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,JOYSTICK_TYPE_GAMEPAD,
-  16, 1,                 // Button Count, Hat Switch Count
-  false, false, false,   // no X, Y and Z Axis
-  false, false, false,   // No Rx, Ry, or Rz
-  false, false,          // No rudder or throttle
-  false, false, false);  // No accelerator, brake, or steering
-
 // SNES pad protocol ---------------------------------------------------------------------
 
 //
@@ -238,6 +343,10 @@ static void setup_snes(void){
   pinMode(SNES_DATA_PIN, INPUT);
 }
 
+// If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
+// the file, resulting to invalid ones, since user types are not defined yet
+static button_state_t read_snes(void);
+
 static button_state_t read_snes(void) {
   button_state_t button = {0};
 
@@ -258,44 +367,40 @@ static button_state_t read_snes(void) {
 }
 
 static int loop_snes(void) {
+  static button_state_t old_status = 0;
 
+  // Read pad status + debounce
   button_state_t button = read_snes();
-
   button = button_debounce(button);
 
+  // Autofire
   int opt = BITGET(button, CAT(SNES_BUTTON_, AUTOFIRE_SELECTOR)); // e.g. CAT(...) -> SNES_BUTTON_SELECT
   BITSET(button, SNES_BUTTON_B, DO_AUTOFIRE(0, BITGET(button, SNES_BUTTON_B), opt));
   BITSET(button, SNES_BUTTON_Y, DO_AUTOFIRE(1, BITGET(button, SNES_BUTTON_Y), opt));
   BITSET(button, SNES_BUTTON_A, DO_AUTOFIRE(2, BITGET(button, SNES_BUTTON_A), opt));
   BITSET(button, SNES_BUTTON_X, DO_AUTOFIRE(3, BITGET(button, SNES_BUTTON_X), opt));
 
-  LOG(0, "button state - %04x - B:%x Y:%x S:%x s:%x u:%x d:%x l:%x r:%x A:%x X:%x L:%x R:%x\n",
-      button,
-      BITGET(button, SNES_BUTTON_B), BITGET(button, SNES_BUTTON_Y),
-      BITGET(button, SNES_BUTTON_START), BITGET(button, SNES_BUTTON_SELECT),
-      BITGET(button, SNES_BUTTON_UP), BITGET(button, SNES_BUTTON_DOWN),
-      BITGET(button, SNES_BUTTON_LEFT), BITGET(button, SNES_BUTTON_RIGHT),
-      BITGET(button, SNES_BUTTON_A), BITGET(button, SNES_BUTTON_X),
-      BITGET(button, SNES_BUTTON_L), BITGET(button, SNES_BUTTON_R)
-   ); // Note: log is bit-ordered
-
-  // leveraging the internal state handling of the Joystick library (no delta needed)
-  Joystick.setButton(0, BITGET(button, SNES_BUTTON_A));
-  Joystick.setButton(1, BITGET(button, SNES_BUTTON_B));
-  Joystick.setButton(2, BITGET(button, SNES_BUTTON_Y));
-  Joystick.setButton(3, BITGET(button, SNES_BUTTON_X));
-  Joystick.setButton(4, BITGET(button, SNES_BUTTON_L));
-  Joystick.setButton(5, BITGET(button, SNES_BUTTON_R));
-  Joystick.setButton(6, BITGET(button, SNES_BUTTON_START));
-  Joystick.setButton(7, BITGET(button, SNES_BUTTON_SELECT));
-  int angle = dpad_angle(
+  // Map the pad status to the report struct
+  // TODO : better mapping betwen button_state_t and gamepad_status_t !
+  gamepad_status_t data = {0};
+  data.dPad1 = dpad_value(
     BITGET(button, SNES_BUTTON_UP),
     BITGET(button, SNES_BUTTON_DOWN),
     BITGET(button, SNES_BUTTON_LEFT),
     BITGET(button, SNES_BUTTON_RIGHT)
   );
-  if (angle < 0) angle = JOYSTICK_HATSWITCH_RELEASE;
-  Joystick.setHatSwitch(0, angle);
+  data.button1 = BITGET(button, SNES_BUTTON_A);
+  data.button2 = BITGET(button, SNES_BUTTON_B);
+  data.button3 = BITGET(button, SNES_BUTTON_Y);
+  data.button4 = BITGET(button, SNES_BUTTON_X);
+  data.button5 = BITGET(button, SNES_BUTTON_L);
+  data.button6 = BITGET(button, SNES_BUTTON_R);
+  data.button7 = BITGET(button, SNES_BUTTON_START);
+  data.button8 = BITGET(button, SNES_BUTTON_SELECT);
+
+  // Send USB event as needed
+  if (old_status != button) gamepad_send(&data);
+  old_status = button;
 
   return -1; // go to default mode
 }
@@ -307,13 +412,8 @@ void setup_first() {
 #ifdef DEBUG
   Serial.begin(9600);
 #endif
-
-  //Keyboard.begin();
-  //Mouse.begin();
-
-  Joystick.begin();
-  Joystick.setXAxisRange(-1, 1);
-  Joystick.setYAxisRange(-1, 1);
+  
+  gamepad_init();
 }
 
 void setup_last() {
@@ -359,3 +459,4 @@ void loop(){
   }
   loop_last();
 }
+
