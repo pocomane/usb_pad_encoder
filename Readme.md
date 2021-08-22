@@ -45,6 +45,14 @@ before start the auto-fire sequence.
 If you selected the `TOGGLE` mode, you can use the `AUTOFIRE_SELECTOR` to chage
 the button to use as toggle in the `TOGGLE` mode (the default is `SELECT`)
 
+# Configure simulation mode
+
+If you define the `SIMULATION_MODE` at beginning of the source, a simulation
+mode will be enabled. In such mode the board will not register itself as a HID
+device neither it will send any HID events. However it will enable logging and
+debug message over serial port, so you can inspect its operation with serial
+console client like `minicom`. This mode is useful in development.
+
 # Configure Arduino USB name
 
 To change the name that arduino uses to identify itself on USB, you have to

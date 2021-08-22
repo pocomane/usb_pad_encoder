@@ -23,11 +23,17 @@ The "SNES pad Arduino USB"'s Author, 2020
 #define AUTOFIRE_TAP_COUNT (2)      // #  // used in assit mode
 #define AUTOFIRE_SELECTOR  SELECT   // button: SELECT, START, etc // used in toggle mode
 
-#define DEBUG
+//#define SIMULATION_MODE
+//#define DEBUG
 
 // Generic routines and macros ---------------------------------------------------------------------
 
-#ifdef DEBUG
+
+#if defined(DEBUG) || defined(SIMULATION_MODE)
+#define USE_SERIAL
+#endif
+
+#ifdef USE_SERIAL
 #define LOG(C, ...) if (C) do { Serial.print("DEBUG "); Serial.print(__FILE__); Serial.print(":"); Serial.print(__LINE__); Serial.print(" "); char __L[256]; snprintf(__L,255,__VA_ARGS__); __L[255] = '\0'; Serial.print(__L); } while(0)
 #else
 #define LOG(...)
@@ -43,6 +49,55 @@ The "SNES pad Arduino USB"'s Author, 2020
 #define CAT(A, B)  CAT2(A, B)
 
 // USB HID wrapper ---------------------------------------------------------------------
+
+typedef struct {
+
+  uint8_t button1  : 1;
+  uint8_t button2  : 1;
+  uint8_t button3  : 1;
+  uint8_t button4  : 1;
+  uint8_t button5  : 1;
+  uint8_t button6  : 1;
+  uint8_t button7  : 1;
+  uint8_t button8  : 1;
+
+  uint8_t button9  : 1;
+  uint8_t buttonA  : 1;
+  uint8_t buttonB  : 1;
+  uint8_t buttonC  : 1;
+  uint8_t buttonD  : 1;
+  uint8_t buttonE  : 1;
+  uint8_t buttonF  : 1;
+  uint8_t button10  : 1;
+
+  uint8_t	dPad1 : 4;
+  uint8_t	dPad2 : 4;
+
+/*
+  int16_t	xAxis;
+  int16_t	yAxis;
+
+  int16_t	rxAxis;
+  int16_t	ryAxis;
+
+  int8_t	zAxis;
+  int8_t	rzAxis;
+*/
+
+} gamepad_status_t;
+
+#ifdef SIMULATION_MODE
+
+void gamepad_init(){ LOG(1, "gamepad simulation initialized\n", 0); }
+int gamepad_send(gamepad_status_t *status){
+  LOG(1, "gamepad report state - %x %x %x %x | %x %x %x %x | %x %x \n",
+      status->button1, status->button2, status->button3, status->button4,
+      status->button5, status->button6, status->button7, status->button8,
+      status->dPad1, status->dPad2
+   );
+}
+
+#else // ! SIMULATION_MODE
 
 #include "HID.h"
 #if !defined(_USING_HID)
@@ -108,42 +163,6 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
   0xc0               //  END_COLLECTION
 };
 
-typedef struct {
-
-  uint8_t button1  : 1;
-  uint8_t button2  : 1;
-  uint8_t button3  : 1;
-  uint8_t button4  : 1;
-  uint8_t button5  : 1;
-  uint8_t button6  : 1;
-  uint8_t button7  : 1;
-  uint8_t button8  : 1;
-
-  uint8_t button9  : 1;
-  uint8_t buttonA  : 1;
-  uint8_t buttonB  : 1;
-  uint8_t buttonC  : 1;
-  uint8_t buttonD  : 1;
-  uint8_t buttonE  : 1;
-  uint8_t buttonF  : 1;
-  uint8_t button10  : 1;
-
-  uint8_t	dPad1 : 4;
-  uint8_t	dPad2 : 4;
-
-/*
-  int16_t	xAxis;
-  int16_t	yAxis;
-
-  int16_t	rxAxis;
-  int16_t	ryAxis;
-
-  int8_t	zAxis;
-  int8_t	rzAxis;
-*/
-
-} gamepad_status_t;
-
 void gamepad_init(){
 
   static HIDSubDescriptor node(gamepad_hid_descriptor, sizeof(gamepad_hid_descriptor));
@@ -162,6 +181,10 @@ int gamepad_send(gamepad_status_t *status){
       status->dPad1, status->dPad2
    );
 }
+
+#undef REPORTID
+
+#endif // ! SIMULATION_MODE
 
 // Common input-related routines ---------------------------------------------------------------------
 
@@ -427,7 +450,7 @@ static int loop_snes(void) {
 
 void setup_first() {
 
-#ifdef DEBUG
+#ifdef USE_SERIAL
   Serial.begin(9600);
 #endif
   
