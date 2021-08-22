@@ -42,12 +42,6 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define LOG(...)
 #endif
 
-//#define BITFLIP(B, N)   ((B) ^= (1<<(N)))
-#define BITON(B, N)     ((B) |= (1<<(N)))
-#define BITOFF(B, N)    ((B) &= ~(1<<(N)))
-#define BITGET(B, N)    (!!((B) & (1<<(N))))
-#define BITSET(B, N, V) ((V) ? BITON(B,N) : BITOFF(B,N))
-
 #define CAT2(A, B) A ## B
 #define CAT(A, B)  CAT2(A, B)
 
@@ -55,6 +49,7 @@ The "USB pad encoder with Arduino"'s Author, 2021
 
 typedef struct {
 
+  uint8_t button0  : 1;
   uint8_t button1  : 1;
   uint8_t button2  : 1;
   uint8_t button3  : 1;
@@ -63,7 +58,6 @@ typedef struct {
   uint8_t button6  : 1;
   uint8_t button7  : 1;
   uint8_t button8  : 1;
-
   uint8_t button9  : 1;
   uint8_t buttonA  : 1;
   uint8_t buttonB  : 1;
@@ -71,10 +65,9 @@ typedef struct {
   uint8_t buttonD  : 1;
   uint8_t buttonE  : 1;
   uint8_t buttonF  : 1;
-  uint8_t button10  : 1;
 
-  uint8_t	dPad1 : 4;
-  uint8_t	dPad2 : 4;
+  uint8_t	pad0 : 4;
+  uint8_t	pad1 : 4;
 
 /*
   int16_t	xAxis;
@@ -89,14 +82,60 @@ typedef struct {
 
 } gamepad_status_t;
 
+static int gamepad_status_change(gamepad_status_t a, gamepad_status_t b){
+  if(a.button0 != b.button0) return 1;
+  if(a.button1 != b.button1) return 1;
+  if(a.button2 != b.button2) return 1;
+  if(a.button3 != b.button3) return 1;
+  if(a.button4 != b.button4) return 1;
+  if(a.button5 != b.button5) return 1;
+  if(a.button6 != b.button6) return 1;
+  if(a.button7 != b.button7) return 1;
+  if(a.button8 != b.button8) return 1;
+  if(a.button9 != b.button9) return 1;
+  if(a.buttonA != b.buttonA) return 1;
+  if(a.buttonB != b.buttonB) return 1;
+  if(a.buttonC != b.buttonC) return 1;
+  if(a.buttonD != b.buttonD) return 1;
+  if(a.buttonE != b.buttonE) return 1;
+  if(a.buttonF != b.buttonF) return 1;
+  if(a.pad0 != b.pad0) return 1;
+  if(a.pad1 != b.pad1) return 1;
+  return 0;
+}
+
+static int gamepad_button_set(gamepad_status_t*data, int idx, int val){
+  switch (idx){
+    default: ;
+    break; case 0x0: data->button0 = val;
+    break; case 0x1: data->button1 = val;
+    break; case 0x2: data->button2 = val;
+    break; case 0x3: data->button3 = val;
+    break; case 0x4: data->button4 = val;
+    break; case 0x5: data->button5 = val;
+    break; case 0x6: data->button6 = val;
+    break; case 0x7: data->button7 = val;
+    break; case 0x8: data->button8 = val;
+    break; case 0x9: data->button9 = val;
+    break; case 0xA: data->buttonA = val;
+    break; case 0xB: data->buttonB = val;
+    break; case 0xC: data->buttonC = val;
+    break; case 0xD: data->buttonD = val;
+    break; case 0xE: data->buttonE = val;
+    break; case 0xF: data->buttonF = val;
+  }
+}
+
 #ifdef SIMULATION_MODE
 
 void gamepad_init(){ LOG(1, "gamepad simulation initialized\n", 0); }
 int gamepad_send(gamepad_status_t *status){
-  LOG(1, "gamepad report state - %x %x %x %x | %x %x %x %x | %x %x \n",
-      status->button1, status->button2, status->button3, status->button4,
-      status->button5, status->button6, status->button7, status->button8,
-      status->dPad1, status->dPad2
+  LOG(1, "gamepad report state - %x%x%x%x | %x%x%x%x | %x%x%x%x | %x%x%x%x | %x %x - %lu %lu\n",
+      status->button0, status->button1, status->button2, status->button3,
+      status->button4, status->button5, status->button6, status->button7,
+      status->button8, status->button9, status->buttonA, status->buttonB,
+      status->buttonC, status->buttonD, status->buttonE, status->buttonF,
+      status->pad0, status->pad1, micros() - current_time_step(), current_time_step()
    );
 }
 
@@ -178,10 +217,12 @@ int gamepad_send(gamepad_status_t *status){
 
   HID().SendReport(REPORTID, status, sizeof(*status));
 
-  LOG(1, "gamepad report state - %x %x %x %x | %x %x %x %x | %x %x \n",
-      status->button1, status->button2, status->button3, status->button4,
-      status->button5, status->button6, status->button7, status->button8,
-      status->dPad1, status->dPad2
+  LOG(1, "gamepad report state - %x%x%x%x | %x%x%x%x | %x%x%x%x | %x%x%x%x | %x %x - %lu %lu\n",
+      status->button0, status->button1, status->button2, status->button3,
+      status->button4, status->button5, status->button6, status->button7,
+      status->button8, status->button9, status->buttonA, status->buttonB,
+      status->buttonC, status->buttonD, status->buttonE, status->buttonF,
+      status->pad0, status->pad1, micros() - current_time_step(), current_time_step()
    );
 }
 
@@ -190,10 +231,6 @@ int gamepad_send(gamepad_status_t *status){
 #endif // ! SIMULATION_MODE
 
 // Common input-related routines ---------------------------------------------------------------------
-
-#define NUMBER_OF_BUTTONS   12
-
-typedef uint16_t button_state_t;
 
 static unsigned long now_us = 0;
 static void next_time_step(void) { now_us = micros(); }
@@ -217,10 +254,10 @@ static int dpad_value(int up, int down, int left, int right) {
 
 // If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
 // the file, resulting to invalid ones, since user types are not defined yet
-static button_state_t button_debounce(button_state_t button);
+static gamepad_status_t button_debounce(gamepad_status_t button);
 
-static button_state_t button_debounce(button_state_t button) {
-  // No debounce needed ? SNES HW should address it !
+static gamepad_status_t button_debounce(gamepad_status_t button) {
+  // TODO : implement !
   return button;
 }
 
@@ -355,73 +392,67 @@ static int do_autofire(int index, int is_pressed, int option) {
 #define ATARI_RIGHT_PIN  8
 #define ATARI_FIRE_PIN   9
 
-#define ATARI_BUTTON_FIRE    0
-#define ATARI_BUTTON_UP      4
-#define ATARI_BUTTON_DOWN    5
-#define ATARI_BUTTON_LEFT    6
-#define ATARI_BUTTON_RIGHT   7
+#define ATARI_BUTTON_FIRE    button0
+#define ATARI_BUTTON_UP      button1
+#define ATARI_BUTTON_DOWN    button2
+#define ATARI_BUTTON_LEFT    button3
+#define ATARI_BUTTON_RIGHT   button4
 
 static void setup_atari(void){
 
   // Note: all pull-up by default
   pinMode(ATARI_UP_PIN, INPUT);
-  /* pinMode(ATARI_DOWN_PIN, INPUT); */
-  /* pinMode(ATARI_LEFT_PIN, INPUT); */
-  /* pinMode(ATARI_RIGHT_PIN, INPUT); */
-  /* pinMode(ATARI_FIRE_PIN, INPUT); */
+  pinMode(ATARI_DOWN_PIN, INPUT);
+  pinMode(ATARI_LEFT_PIN, INPUT);
+  pinMode(ATARI_RIGHT_PIN, INPUT);
+  pinMode(ATARI_FIRE_PIN, INPUT);
 }
 
 // If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
 // the file, resulting to invalid ones, since user types are not defined yet
-static button_state_t read_atari(void);
+static gamepad_status_t read_atari(void);
 
-static button_state_t read_atari(void) {
-  button_state_t button = {0};
+static gamepad_status_t read_atari(void) {
+  gamepad_status_t gamepad = {0};
 
-  BITSET(button, ATARI_BUTTON_FIRE,  !digitalRead(ATARI_FIRE_PIN));
-  BITSET(button, ATARI_BUTTON_UP,    !digitalRead(ATARI_UP_PIN));
-  BITSET(button, ATARI_BUTTON_DOWN,  !digitalRead(ATARI_DOWN_PIN));
-  BITSET(button, ATARI_BUTTON_LEFT,  !digitalRead(ATARI_LEFT_PIN));
-  BITSET(button, ATARI_BUTTON_RIGHT, !digitalRead(ATARI_RIGHT_PIN));
+  gamepad.ATARI_BUTTON_FIRE =  !digitalRead(ATARI_FIRE_PIN);
+  gamepad.ATARI_BUTTON_UP =    !digitalRead(ATARI_UP_PIN);
+  gamepad.ATARI_BUTTON_DOWN =  !digitalRead(ATARI_DOWN_PIN);
+  gamepad.ATARI_BUTTON_LEFT =  !digitalRead(ATARI_LEFT_PIN);
+  gamepad.ATARI_BUTTON_RIGHT = !digitalRead(ATARI_RIGHT_PIN);
 
-  return button;
+  return gamepad;
 }
 
 static int loop_atari(void) {
-  static button_state_t old_status = 0;
+  static gamepad_status_t old_status = {0};
 
   // Read pad status + debounce
-  button_state_t button = read_atari();
-  button = button_debounce(button);
+  gamepad_status_t gamepad = read_atari();
+  gamepad = button_debounce(gamepad);
 
   // Autofire
-  BITSET(button, ATARI_BUTTON_FIRE, do_autofire(0, BITGET(button, ATARI_BUTTON_FIRE), 0));
+  // Last parameter is always zero since atari pad have one fire button so the
+  // TOGGLE mode can no be used for autofire
+  gamepad.ATARI_BUTTON_FIRE = do_autofire(0, gamepad.ATARI_BUTTON_FIRE, 0);
 
-  // Map the pad status to the report struct
-  // TODO : better mapping betwen button_state_t and gamepad_status_t !
-  gamepad_status_t data = {0};
-
-  // Map dpad to an hat
-  data.dPad1 = dpad_value(
-    BITGET(button, ATARI_BUTTON_UP),
-    BITGET(button, ATARI_BUTTON_DOWN),
-    BITGET(button, ATARI_BUTTON_LEFT),
-    BITGET(button, ATARI_BUTTON_RIGHT)
+  // Map dpad to an hat (comment to map the dpad as regular buttons)
+  gamepad.pad0 = dpad_value(
+    gamepad.ATARI_BUTTON_UP,
+    gamepad.ATARI_BUTTON_DOWN,
+    gamepad.ATARI_BUTTON_LEFT,
+    gamepad.ATARI_BUTTON_RIGHT
   );
-
-  // // Map dpad to regular buttons
-  // data.buttonA = BITGET(button, ATARI_BUTTON_UP);
-  // data.buttonB = BITGET(button, ATARI_BUTTON_DOWN);
-  // data.buttonC = BITGET(button, ATARI_BUTTON_LEFT);
-  // data.buttonD = BITGET(button, ATARI_BUTTON_RIGHT);
-
-  data.button1 = BITGET(button, ATARI_BUTTON_FIRE);
+  gamepad.ATARI_BUTTON_UP = 0;
+  gamepad.ATARI_BUTTON_DOWN = 0;
+  gamepad.ATARI_BUTTON_LEFT = 0;
+  gamepad.ATARI_BUTTON_RIGHT = 0;
 
   // Send USB event as needed
-  if (old_status != button) gamepad_send(&data);
-  old_status = button;
+  if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
+  old_status = gamepad;
 
-  return -1; // go to default mode
+  return 0;
 }
 
 // SNES pad protocol --------------------------------------------------------------
@@ -453,18 +484,18 @@ static int loop_atari(void) {
 #define SNES_CLOCK_PIN  8
 #define SNES_DATA_PIN   9
   
-#define SNES_BUTTON_B        0
-#define SNES_BUTTON_Y        1
-#define SNES_BUTTON_SELECT   2
-#define SNES_BUTTON_START    3
-#define SNES_BUTTON_UP       4
-#define SNES_BUTTON_DOWN     5
-#define SNES_BUTTON_LEFT     6
-#define SNES_BUTTON_RIGHT    7
-#define SNES_BUTTON_A        8
-#define SNES_BUTTON_X        9
-#define SNES_BUTTON_L        10
-#define SNES_BUTTON_R        11
+#define SNES_BUTTON_B        button0
+#define SNES_BUTTON_Y        button1
+#define SNES_BUTTON_SELECT   button2
+#define SNES_BUTTON_START    button3
+#define SNES_BUTTON_UP       button4
+#define SNES_BUTTON_DOWN     button5
+#define SNES_BUTTON_LEFT     button6
+#define SNES_BUTTON_RIGHT    button7
+#define SNES_BUTTON_A        button8
+#define SNES_BUTTON_X        button9
+#define SNES_BUTTON_L        buttonA
+#define SNES_BUTTON_R        buttonB
 
 static void setup_snes(void){
 
@@ -481,73 +512,58 @@ static void setup_snes(void){
 
 // If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
 // the file, resulting to invalid ones, since user types are not defined yet
-static button_state_t read_snes(void);
+static gamepad_status_t read_snes(void);
 
-static button_state_t read_snes(void) {
-  button_state_t button = {0};
+static gamepad_status_t read_snes(void) {
+  gamepad_status_t gamepad = {0};
 
   digitalWrite(SNES_LATCH_PIN, HIGH);
   delayMicroseconds(12);
   digitalWrite(SNES_LATCH_PIN, LOW);
   delayMicroseconds(6);
 
-  for(int i = 0; i < NUMBER_OF_BUTTONS; i++){
+  for(int i = 0; i < 12; i++){
       digitalWrite(SNES_CLOCK_PIN, LOW);
       delayMicroseconds(6);
-      BITSET(button, i, !digitalRead(SNES_DATA_PIN));
+      gamepad_button_set(&gamepad, i, !digitalRead(SNES_DATA_PIN));
       digitalWrite(SNES_CLOCK_PIN, HIGH);
       delayMicroseconds(6);
   }
 
-  return button;
+  return gamepad;
 }
 
 static int loop_snes(void) {
-  static button_state_t old_status = 0;
+  static gamepad_status_t old_status = {0};
 
   // Read pad status + debounce
-  button_state_t button = read_snes();
-  button = button_debounce(button);
+  gamepad_status_t gamepad = read_snes();
+  // gamepad = button_debounce(gamepad); // No debounce needed ? SNES HW should address it !
 
   // Autofire
-  int opt = BITGET(button, CAT(SNES_BUTTON_, AUTOFIRE_SELECTOR)); // e.g. CAT(...) -> SNES_BUTTON_SELECT
-  BITSET(button, SNES_BUTTON_B, do_autofire(0, BITGET(button, SNES_BUTTON_B), opt));
-  BITSET(button, SNES_BUTTON_Y, do_autofire(1, BITGET(button, SNES_BUTTON_Y), opt));
-  BITSET(button, SNES_BUTTON_A, do_autofire(2, BITGET(button, SNES_BUTTON_A), opt));
-  BITSET(button, SNES_BUTTON_X, do_autofire(3, BITGET(button, SNES_BUTTON_X), opt));
+  int opt = gamepad.CAT(SNES_BUTTON_, AUTOFIRE_SELECTOR); // e.g. CAT(...) -> SNES_BUTTON_SELECT // TODO : clean up !
+  gamepad.SNES_BUTTON_B = do_autofire(0, gamepad.SNES_BUTTON_B, opt);
+  gamepad.SNES_BUTTON_Y = do_autofire(1, gamepad.SNES_BUTTON_Y, opt);
+  gamepad.SNES_BUTTON_A = do_autofire(2, gamepad.SNES_BUTTON_A, opt);
+  gamepad.SNES_BUTTON_X = do_autofire(3, gamepad.SNES_BUTTON_X, opt);
 
-  // Map the pad status to the report struct
-  // TODO : better mapping betwen button_state_t and gamepad_status_t !
-  gamepad_status_t data = {0};
-
-  // Map dpad to an hat
-  data.dPad1 = dpad_value(
-    BITGET(button, SNES_BUTTON_UP),
-    BITGET(button, SNES_BUTTON_DOWN),
-    BITGET(button, SNES_BUTTON_LEFT),
-    BITGET(button, SNES_BUTTON_RIGHT)
+  // Map dpad to an hat (comment to map the dpad as regular buttons)
+  gamepad.pad0 = dpad_value(
+    gamepad.SNES_BUTTON_UP,
+    gamepad.SNES_BUTTON_DOWN,
+    gamepad.SNES_BUTTON_LEFT,
+    gamepad.SNES_BUTTON_RIGHT
   );
-
-  // // Map dpad to regular buttons
-  // data.buttonA = BITGET(button, SNES_BUTTON_UP);
-  // data.buttonB = BITGET(button, SNES_BUTTON_DOWN);
-  // data.buttonC = BITGET(button, SNES_BUTTON_LEFT);
-  // data.buttonD = BITGET(button, SNES_BUTTON_RIGHT);
-
-  data.button1 = BITGET(button, SNES_BUTTON_A);
-  data.button2 = BITGET(button, SNES_BUTTON_B);
-  data.button3 = BITGET(button, SNES_BUTTON_Y);
-  data.button4 = BITGET(button, SNES_BUTTON_X);
-  data.button5 = BITGET(button, SNES_BUTTON_L);
-  data.button6 = BITGET(button, SNES_BUTTON_R);
-  data.button7 = BITGET(button, SNES_BUTTON_START);
-  data.button8 = BITGET(button, SNES_BUTTON_SELECT);
+  gamepad.SNES_BUTTON_UP = 0;
+  gamepad.SNES_BUTTON_DOWN = 0;
+  gamepad.SNES_BUTTON_LEFT = 0;
+  gamepad.SNES_BUTTON_RIGHT = 0;
 
   // Send USB event as needed
-  if (old_status != button) gamepad_send(&data);
-  old_status = button;
+  if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
+  old_status = gamepad;
 
-  return -1; // go to default mode
+  return 0;
 }
 
 // dispatcher ---------------------------------------------------------------------
