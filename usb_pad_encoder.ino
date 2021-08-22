@@ -402,11 +402,11 @@ static int do_autofire(int index, int is_pressed, int option) {
 
 static void setup_atari(void){
 
-  pinMode(ATARI_UP_PIN, INPUT);
-  pinMode(ATARI_DOWN_PIN, INPUT);
-  pinMode(ATARI_LEFT_PIN, INPUT);
-  pinMode(ATARI_RIGHT_PIN, INPUT);
-  pinMode(ATARI_FIRE_PIN, INPUT);
+  pinMode(ATARI_UP_PIN, INPUT_PULLUP);
+  pinMode(ATARI_DOWN_PIN, INPUT_PULLUP);
+  pinMode(ATARI_LEFT_PIN, INPUT_PULLUP);
+  pinMode(ATARI_RIGHT_PIN, INPUT_PULLUP);
+  pinMode(ATARI_FIRE_PIN, INPUT_PULLUP);
 }
 
 // If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
@@ -582,6 +582,7 @@ void setup_last() {
 
   next_time_step();
 
+#ifdef LED_BUILTIN_TX
   // shutdown annoying leds
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LED_BUILTIN_RX, OUTPUT);
@@ -589,16 +590,19 @@ void setup_last() {
   digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(LED_BUILTIN_RX, HIGH);
   digitalWrite(LED_BUILTIN_TX, HIGH);
+#endif // LED_BUILTIN_TX
 }
 
 static void loop_first(void){
 
   next_time_step();
 
+#ifdef LED_BUILTIN_TX
   // the bootloader continously turn on the annoying leds, shutdown
   digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(LED_BUILTIN_RX, HIGH);
   digitalWrite(LED_BUILTIN_TX, HIGH);
+#endif // LED_BUILTIN_TX
 }
 
 static void loop_last(void){
