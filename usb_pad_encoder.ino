@@ -508,7 +508,7 @@ static void setup_snes(void){
 
   pinMode(SNES_DATA_PIN, OUTPUT);
   digitalWrite(SNES_DATA_PIN, HIGH);
-  pinMode(SNES_DATA_PIN, INPUT);
+  pinMode(SNES_DATA_PIN, INPUT_PULLUP);
 }
 
 // If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
