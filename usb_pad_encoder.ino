@@ -11,23 +11,26 @@ of the following licences:
 - CC0 https://creativecommons.org/publicdomain/zero/1.0/legalcode
 - Unlicense https://unlicense.org/
 
-The "SNES pad Arduino USB"'s Author, 2020
+The "USB pad encoder with Arduino"'s Author, 2021
 
 ***********************************************************************************/
 
 // Config -------------------------------------------------------------------------
 
+#define PROTOCOL SNES // SNES, ATARI
+
 #define AUTOFIRE_MODE      ASSIST   // NONE, ASSIST, TOGGLE
 #define TAP_MAX_PERIOD     (200000) // us // used in any mode except none
-#define AUTOFIRE_PERIOD    (75000) // us // used in any mode except none
+#define AUTOFIRE_PERIOD    (75000)  // us // used in any mode except none
 #define AUTOFIRE_TAP_COUNT (2)      // #  // used in assit mode
 #define AUTOFIRE_SELECTOR  SELECT   // button: SELECT, START, etc // used in toggle mode
 
 //#define SIMULATION_MODE
 //#define DEBUG
 
-// Generic routines and macros ---------------------------------------------------------------------
+#define SERIAL_BPS 9600 // for debug/logging only // 9600 = e.g. 32u4
 
+// Generic routines and macros ---------------------------------------------------------------------
 
 #if defined(DEBUG) || defined(SIMULATION_MODE)
 #define USE_SERIAL
@@ -320,7 +323,107 @@ static int autofire_toggle(int index, int is_pressed, int is_toggled) {
   #error "unsupported autofire mode"
 #endif
 
-// SNES pad protocol ---------------------------------------------------------------------
+// Atari protocol (no paddle) -----------------------------------------------------
+
+//
+// Front view of famle DB9
+// ( the one at end of the joistick cable)
+//
+//            R   L   D   U
+//    \""""""""""""""""""""""/
+//     \  O   O   O   O   O / <- DB9-pin-1
+//      \   O   O   O   O  /
+//       \________________/
+//              G       F
+//
+// . = Unused
+// G = Ground
+// U = Up
+// D = Down
+// L = Left
+// R = Right
+// F = Fire
+//
+// Pin loose = button/direction is released
+// Pin at ground = button/direction is pressed
+//
+
+#define ATARI_UP_PIN     13
+#define ATARI_DOWN_PIN   6
+#define ATARI_LEFT_PIN   7
+#define ATARI_RIGHT_PIN  8
+#define ATARI_FIRE_PIN   9
+
+#define ATARI_BUTTON_FIRE    0
+#define ATARI_BUTTON_UP      4
+#define ATARI_BUTTON_DOWN    5
+#define ATARI_BUTTON_LEFT    6
+#define ATARI_BUTTON_RIGHT   7
+
+static void setup_atari(void){
+
+  // Note: all pull-up by default
+  pinMode(ATARI_UP_PIN, INPUT);
+  /* pinMode(ATARI_DOWN_PIN, INPUT); */
+  /* pinMode(ATARI_LEFT_PIN, INPUT); */
+  /* pinMode(ATARI_RIGHT_PIN, INPUT); */
+  /* pinMode(ATARI_FIRE_PIN, INPUT); */
+}
+
+// If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
+// the file, resulting to invalid ones, since user types are not defined yet
+static button_state_t read_atari(void);
+
+static button_state_t read_atari(void) {
+  button_state_t button = {0};
+
+  BITSET(button, ATARI_BUTTON_FIRE,  !digitalRead(ATARI_FIRE_PIN));
+  BITSET(button, ATARI_BUTTON_UP,    !digitalRead(ATARI_UP_PIN));
+  BITSET(button, ATARI_BUTTON_DOWN,  !digitalRead(ATARI_DOWN_PIN));
+  BITSET(button, ATARI_BUTTON_LEFT,  !digitalRead(ATARI_LEFT_PIN));
+  BITSET(button, ATARI_BUTTON_RIGHT, !digitalRead(ATARI_RIGHT_PIN));
+
+  return button;
+}
+
+static int loop_atari(void) {
+  static button_state_t old_status = 0;
+
+  // Read pad status + debounce
+  button_state_t button = read_atari();
+  button = button_debounce(button);
+
+  // Autofire
+  BITSET(button, ATARI_BUTTON_FIRE, DO_AUTOFIRE(0, BITGET(button, ATARI_BUTTON_FIRE), 0));
+
+  // Map the pad status to the report struct
+  // TODO : better mapping betwen button_state_t and gamepad_status_t !
+  gamepad_status_t data = {0};
+
+  // Map dpad to an hat
+  data.dPad1 = dpad_value(
+    BITGET(button, ATARI_BUTTON_UP),
+    BITGET(button, ATARI_BUTTON_DOWN),
+    BITGET(button, ATARI_BUTTON_LEFT),
+    BITGET(button, ATARI_BUTTON_RIGHT)
+  );
+
+  // // Map dpad to regular buttons
+  // data.buttonA = BITGET(button, ATARI_BUTTON_UP);
+  // data.buttonB = BITGET(button, ATARI_BUTTON_DOWN);
+  // data.buttonC = BITGET(button, ATARI_BUTTON_LEFT);
+  // data.buttonD = BITGET(button, ATARI_BUTTON_RIGHT);
+
+  data.button1 = BITGET(button, ATARI_BUTTON_FIRE);
+
+  // Send USB event as needed
+  if (old_status != button) gamepad_send(&data);
+  old_status = button;
+
+  return -1; // go to default mode
+}
+
+// SNES pad protocol --------------------------------------------------------------
 
 //
 //   / """""""""""""""""""""""
@@ -448,10 +551,19 @@ static int loop_snes(void) {
 
 // dispatcher ---------------------------------------------------------------------
 
+#define SNES 1
+#define ATARI 2
+
+#if PROTOCOL == SNES
+#elif PROTOCOL == ATARI
+#else
+#error selected PROTOCOL is not supported
+#endif
+
 void setup_first() {
 
 #ifdef USE_SERIAL
-  Serial.begin(9600);
+  Serial.begin(SERIAL_BPS);
 #endif
   
   gamepad_init();
@@ -486,18 +598,25 @@ static void loop_last(void){
 
 void setup() {
   setup_first();
+
+#if PROTOCOL == SNES
   setup_snes();
+#elif PROTOCOL == ATARI
+  setup_atari();
+#endif
+
   setup_last();
 }
 
 void loop(){
-  static int mode = -1;
   loop_first();
-  switch (mode) {
-  break;default: mode = loop_snes();
-  // break;case  0: mode = loop_mode_0();
-  // break;case  1: mode = loop_mode_1();
-  }
+
+#if PROTOCOL == SNES
+  loop_snes();
+#elif PROTOCOL == ATARI
+  loop_atari();
+#endif
+
   loop_last();
 }
 
