@@ -63,11 +63,11 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
     // 8 Buttons
     0x05, 0x09,        //  USAGE_PAGE (Button)
       0x19, 0x01,        //  USAGE_MINIMUM (Button 1)
-      0x29, 0x08,        //  USAGE_MAXIMUM (Button 8)
+      0x29, 0x10,        //  USAGE_MAXIMUM (Button 16)
     0x15, 0x00,        //  LOGICAL_MINIMUM (0)
     0x25, 0x01,        //  LOGICAL_MAXIMUM (1)
     0x75, 0x01,        //  REPORT_SIZE (1)
-    0x95, 0x08,        //  REPORT_COUNT (8)
+    0x95, 0x10,        //  REPORT_COUNT (16)
     0x81, 0x02,        //  INPUT (Data,Var,Abs)
 
     // 2 Hat Switches
@@ -118,6 +118,15 @@ typedef struct {
   uint8_t button6  : 1;
   uint8_t button7  : 1;
   uint8_t button8  : 1;
+
+  uint8_t button9  : 1;
+  uint8_t buttonA  : 1;
+  uint8_t buttonB  : 1;
+  uint8_t buttonC  : 1;
+  uint8_t buttonD  : 1;
+  uint8_t buttonE  : 1;
+  uint8_t buttonF  : 1;
+  uint8_t button10  : 1;
 
   uint8_t	dPad1 : 4;
   uint8_t	dPad2 : 4;
@@ -383,12 +392,21 @@ static int loop_snes(void) {
   // Map the pad status to the report struct
   // TODO : better mapping betwen button_state_t and gamepad_status_t !
   gamepad_status_t data = {0};
+
+  // Map dpad to an hat
   data.dPad1 = dpad_value(
     BITGET(button, SNES_BUTTON_UP),
     BITGET(button, SNES_BUTTON_DOWN),
     BITGET(button, SNES_BUTTON_LEFT),
     BITGET(button, SNES_BUTTON_RIGHT)
   );
+
+  // // Map dpad to regular buttons
+  // data.buttonA = BITGET(button, SNES_BUTTON_UP);
+  // data.buttonB = BITGET(button, SNES_BUTTON_DOWN);
+  // data.buttonC = BITGET(button, SNES_BUTTON_LEFT);
+  // data.buttonD = BITGET(button, SNES_BUTTON_RIGHT);
+
   data.button1 = BITGET(button, SNES_BUTTON_A);
   data.button2 = BITGET(button, SNES_BUTTON_B);
   data.button3 = BITGET(button, SNES_BUTTON_Y);
