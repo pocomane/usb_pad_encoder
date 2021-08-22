@@ -28,7 +28,9 @@ The "USB pad encoder with Arduino"'s Author, 2021
 //#define SIMULATION_MODE
 //#define DEBUG
 
-#define SERIAL_BPS 9600 // for debug/logging only // 9600 = e.g. 32u4
+// for debug/logging only
+#define SERIAL_BPS 9600 // e.g. 32u4
+#define SERIAL_EOL "\n"
 
 // Generic routines and macros ---------------------------------------------------------------------
 
@@ -37,7 +39,7 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #endif
 
 #ifdef USE_SERIAL
-#define LOG(C, ...) if (C) do { Serial.print("DEBUG "); Serial.print(__FILE__); Serial.print(":"); Serial.print(__LINE__); Serial.print(" "); char __L[256]; snprintf(__L,255,__VA_ARGS__); __L[255] = '\0'; Serial.print(__L); } while(0)
+#define LOG(C, ...) if (C) do { Serial.print(__FILE__); Serial.print(":"); Serial.print(__LINE__); Serial.print(" "); char __L[256]; snprintf(__L,255,__VA_ARGS__); __L[255] = '\0'; Serial.print(__L); Serial.print(SERIAL_EOL); } while(0)
 #else
 #define LOG(...)
 #endif
@@ -128,9 +130,9 @@ static int gamepad_button_set(gamepad_status_t*data, int idx, int val){
 
 #ifdef SIMULATION_MODE
 
-void gamepad_init(){ LOG(1, "gamepad simulation initialized\n", 0); }
+void gamepad_init(){ LOG(1, "gamepad simulation initialized", 0); }
 int gamepad_send(gamepad_status_t *status){
-  LOG(1, "gamepad report state - %x%x%x%x | %x%x%x%x | %x%x%x%x | %x%x%x%x | %x %x - %lu %lu\n",
+  LOG(1, "gamepad report state - %x%x%x%x | %x%x%x%x | %x%x%x%x | %x%x%x%x | %x %x - %lu %lu",
       status->button0, status->button1, status->button2, status->button3,
       status->button4, status->button5, status->button6, status->button7,
       status->button8, status->button9, status->buttonA, status->buttonB,
@@ -210,14 +212,14 @@ void gamepad_init(){
   static HIDSubDescriptor node(gamepad_hid_descriptor, sizeof(gamepad_hid_descriptor));
   HID().AppendDescriptor(&node);
 
-  LOG(1, "gamepad initialized\n", 0);
+  LOG(1, "gamepad initialized", 0);
 }
 
 int gamepad_send(gamepad_status_t *status){
 
   HID().SendReport(REPORTID, status, sizeof(*status));
 
-  LOG(1, "gamepad report state - %x%x%x%x | %x%x%x%x | %x%x%x%x | %x%x%x%x | %x %x - %lu %lu\n",
+  LOG(1, "gamepad report state - %x%x%x%x | %x%x%x%x | %x%x%x%x | %x%x%x%x | %x %x - %lu %lu",
       status->button0, status->button1, status->button2, status->button3,
       status->button4, status->button5, status->button6, status->button7,
       status->button8, status->button9, status->buttonA, status->buttonB,
@@ -270,7 +272,7 @@ static int autofire_none(int index, int is_pressed, int option) {
 #define ASSISTED_BUTTON_NUMBER 4
 static int autofire_assist(int index, int is_pressed, int option) {
   if (index < 0 || index >= ASSISTED_BUTTON_NUMBER){
-    LOG(1, "autofire not supported for button %d\n", index);
+    LOG(1, "autofire not supported for button %d", index);
     return is_pressed;
   }
   
@@ -303,7 +305,7 @@ static int autofire_assist(int index, int is_pressed, int option) {
     is_pressed = !(((current_time_step() - press_time) / AUTOFIRE_PERIOD ) % 2);
   }
  
-  LOG(is_pressed != was_pressed, "auto fire status: button/%d count/%d current/%d timing/%ld result/%d\n", index, tap_count[index], is_pressed, current_time_step() - press_time, is_pressed);
+  LOG(is_pressed != was_pressed, "auto fire status: button/%d count/%d current/%d timing/%ld result/%d", index, tap_count[index], is_pressed, current_time_step() - press_time, is_pressed);
 
   return is_pressed;
 }
@@ -335,7 +337,7 @@ static int autofire_toggle(int index, int is_pressed, int is_toggled) {
     is_pressed = !(((current_time_step() - press_time) / AUTOFIRE_PERIOD ) % 2);
   }
 
-  LOG(is_toggled != was_toggled, "auto fire status: button/%d auto/%d current/%d timing/%ld result/%d\n", index, autofire, is_pressed, current_time_step() - press_time, is_pressed);
+  LOG(is_toggled != was_toggled, "auto fire status: button/%d auto/%d current/%d timing/%ld result/%d", index, autofire, is_pressed, current_time_step() - press_time, is_pressed);
 
   return is_pressed;
 }
@@ -387,10 +389,10 @@ static int do_autofire(int index, int is_pressed, int option) {
 //
 
 #define ATARI_UP_PIN     13
-#define ATARI_DOWN_PIN   6
-#define ATARI_LEFT_PIN   7
-#define ATARI_RIGHT_PIN  8
-#define ATARI_FIRE_PIN   9
+#define ATARI_DOWN_PIN   14
+#define ATARI_LEFT_PIN   15
+#define ATARI_RIGHT_PIN  16
+#define ATARI_FIRE_PIN   17
 
 #define ATARI_BUTTON_FIRE    button0
 #define ATARI_BUTTON_UP      button1
@@ -400,7 +402,6 @@ static int do_autofire(int index, int is_pressed, int option) {
 
 static void setup_atari(void){
 
-  // Note: all pull-up by default
   pinMode(ATARI_UP_PIN, INPUT);
   pinMode(ATARI_DOWN_PIN, INPUT);
   pinMode(ATARI_LEFT_PIN, INPUT);
