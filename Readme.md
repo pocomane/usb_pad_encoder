@@ -8,8 +8,8 @@ protocol are supported: SNES, atari 2600 (compatible with commodore joystick).
 # Select the protocol
 
 By default the sketch is configured to read the SNES protocol. To change it,
-just the `PROTOCOL` macro at beginning of the sketch must be set to one of the
-supported protocols.
+just the `INPUT_PROTOCOL` macro at beginning of the sketch must be set to one
+of the supported protocols.
 
 # Auto-fire
 

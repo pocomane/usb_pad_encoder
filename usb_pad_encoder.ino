@@ -17,7 +17,7 @@ The "USB pad encoder with Arduino"'s Author, 2021
 
 // Config -------------------------------------------------------------------------
 
-#define PROTOCOL SNES // SNES, ATARI
+#define INPUT_PROTOCOL   SNES // SNES, ATARI
 
 #define AUTOFIRE_MODE      ASSIST   // NONE, ASSIST, TOGGLE
 #define TAP_MAX_PERIOD     (200000) // us // used in any mode except none
@@ -305,23 +305,24 @@ static int autofire_toggle(int index, int is_pressed, int is_toggled) {
 
 // autofire mode selection
 //
-#define AUTOFIRE_MODE_NONE 0
-#define AUTOFIRE_MODE_ASSIST 1
-#define AUTOFIRE_MODE_TOGGLE 2
-#define AUTOFIRE_CHOSEN CAT(AUTOFIRE_MODE_, AUTOFIRE_MODE) // e.g. result: AUTOFIRE_MODE_ASSIST
-//
-#if   AUTOFIRE_CHOSEN == AUTOFIRE_MODE_NONE
-#  define DO_AUTOFIRE autofire_none
-//
-#elif AUTOFIRE_CHOSEN == AUTOFIRE_MODE_ASSIST
-#  define DO_AUTOFIRE autofire_assist
-//
-#elif AUTOFIRE_CHOSEN == AUTOFIRE_MODE_TOGGLE
-#  define DO_AUTOFIRE autofire_toggle
-//
+#define NONE 1
+#define ASSIST 2
+#define TOGGLE 3
+static int do_autofire(int index, int is_pressed, int option) {
+#if AUTOFIRE_MODE == NONE
+  return autofire_none(index, is_pressed, option);
+#elif AUTOFIRE_MODE == ASSIST
+  return autofire_assist(index, is_pressed, option);
+#elif AUTOFIRE_MODE == TOGGLE
+  return autofire_toggle(index, is_pressed, option);
 #else
   #error "unsupported autofire mode"
+  return -1;
 #endif
+}
+#undef NONE
+#undef ASSIST
+#undef TOGGLE
 
 // Atari protocol (no paddle) -----------------------------------------------------
 
@@ -394,7 +395,7 @@ static int loop_atari(void) {
   button = button_debounce(button);
 
   // Autofire
-  BITSET(button, ATARI_BUTTON_FIRE, DO_AUTOFIRE(0, BITGET(button, ATARI_BUTTON_FIRE), 0));
+  BITSET(button, ATARI_BUTTON_FIRE, do_autofire(0, BITGET(button, ATARI_BUTTON_FIRE), 0));
 
   // Map the pad status to the report struct
   // TODO : better mapping betwen button_state_t and gamepad_status_t !
@@ -510,10 +511,10 @@ static int loop_snes(void) {
 
   // Autofire
   int opt = BITGET(button, CAT(SNES_BUTTON_, AUTOFIRE_SELECTOR)); // e.g. CAT(...) -> SNES_BUTTON_SELECT
-  BITSET(button, SNES_BUTTON_B, DO_AUTOFIRE(0, BITGET(button, SNES_BUTTON_B), opt));
-  BITSET(button, SNES_BUTTON_Y, DO_AUTOFIRE(1, BITGET(button, SNES_BUTTON_Y), opt));
-  BITSET(button, SNES_BUTTON_A, DO_AUTOFIRE(2, BITGET(button, SNES_BUTTON_A), opt));
-  BITSET(button, SNES_BUTTON_X, DO_AUTOFIRE(3, BITGET(button, SNES_BUTTON_X), opt));
+  BITSET(button, SNES_BUTTON_B, do_autofire(0, BITGET(button, SNES_BUTTON_B), opt));
+  BITSET(button, SNES_BUTTON_Y, do_autofire(1, BITGET(button, SNES_BUTTON_Y), opt));
+  BITSET(button, SNES_BUTTON_A, do_autofire(2, BITGET(button, SNES_BUTTON_A), opt));
+  BITSET(button, SNES_BUTTON_X, do_autofire(3, BITGET(button, SNES_BUTTON_X), opt));
 
   // Map the pad status to the report struct
   // TODO : better mapping betwen button_state_t and gamepad_status_t !
@@ -551,15 +552,6 @@ static int loop_snes(void) {
 
 // dispatcher ---------------------------------------------------------------------
 
-#define SNES 1
-#define ATARI 2
-
-#if PROTOCOL == SNES
-#elif PROTOCOL == ATARI
-#else
-#error selected PROTOCOL is not supported
-#endif
-
 void setup_first() {
 
 #ifdef USE_SERIAL
@@ -596,12 +588,21 @@ static void loop_last(void){
   // nothing to do
 }
 
+#define SNES 1
+#define ATARI 2
+
+#if INPUT_PROTOCOL == SNES
+#elif INPUT_PROTOCOL == ATARI
+#else
+#error "selected INPUT_PROTOCOL is not supported"
+#endif
+
 void setup() {
   setup_first();
 
-#if PROTOCOL == SNES
+#if INPUT_PROTOCOL == SNES
   setup_snes();
-#elif PROTOCOL == ATARI
+#elif INPUT_PROTOCOL == ATARI
   setup_atari();
 #endif
 
@@ -611,12 +612,15 @@ void setup() {
 void loop(){
   loop_first();
 
-#if PROTOCOL == SNES
+#if INPUT_PROTOCOL == SNES
   loop_snes();
-#elif PROTOCOL == ATARI
+#elif INPUT_PROTOCOL == ATARI
   loop_atari();
 #endif
 
   loop_last();
 }
+
+#undef SNES
+#undef ATARI
 
