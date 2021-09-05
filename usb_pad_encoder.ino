@@ -3,7 +3,7 @@
 This is free and unencumbered work released into the public domain.
 
 Should the previous statement, for any reason, be judged legally invalid or
-ineffective under applicable law, the work is made avaiable under the terms of one
+eneffective under applicable law, the work is made avaiable under the terms of one
 of the following licences:
 
 - Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
@@ -17,7 +17,7 @@ The "USB pad encoder with Arduino"'s Author, 2021
 
 // Config -------------------------------------------------------------------------
 
-#define INPUT_PROTOCOL   SNES // SNES, ATARI
+#define INPUT_PROTOCOL   SNES // ATARI, ATARI_PADDLE, SNES
 
 #define AUTOFIRE_MODE      ASSIST   // NONE, ASSIST, TOGGLE
 #define TAP_MAX_PERIOD     (200000) // us // used in any mode except none
@@ -37,6 +37,18 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #if defined(DEBUG) || defined(SIMULATION_MODE)
 #define USE_SERIAL
 #endif
+
+#define ATARI        1
+#define ATARI_PADDLE 2
+#define SNES         3
+
+#define NONE   1
+#define ASSIST 2
+#define TOGGLE 3
+
+#if INPUT_PROTOCOL == ATARI_PADDLE && !defined(ENABLE_AXIS)
+#define ENABLE_AXIS
+#endif // ATARI_PADDLE
 
 #ifdef USE_SERIAL
 #define LOG(C, ...) if (C) do { Serial.print(__FILE__); Serial.print(":"); Serial.print(__LINE__); Serial.print(" "); char __L[256]; snprintf(__L,255,__VA_ARGS__); __L[255] = '\0'; Serial.print(__L); Serial.print(SERIAL_EOL); } while(0)
@@ -71,13 +83,15 @@ typedef struct {
   uint8_t	pad0 : 4;
   uint8_t	pad1 : 4;
 
-/*
+#ifdef ENABLE_AXIS
+  // TODO : enable left and right axis with two different compile-time flags
   int16_t	xAxis;
   int16_t	yAxis;
-
   int16_t	rxAxis;
   int16_t	ryAxis;
+#endif // ENABLE_AXIS
 
+/*
   int8_t	zAxis;
   int8_t	rzAxis;
 */
@@ -103,6 +117,20 @@ static int gamepad_status_change(gamepad_status_t a, gamepad_status_t b){
   if(a.buttonF != b.buttonF) return 1;
   if(a.pad0 != b.pad0) return 1;
   if(a.pad1 != b.pad1) return 1;
+#ifdef ENABLE_AXIS
+  int16_t dx = a.xAxis - b.xAxis;
+  int16_t dy = a.yAxis - b.yAxis;
+  dx = dx < 0 ? -dx : dx;
+  dy = dy < 0 ? -dy : dy;
+  if(dx > 1) return 1;
+  if(dy > 1) return 1;
+  dx = a.rxAxis - b.rxAxis;
+  dy = a.ryAxis - b.ryAxis;
+  dx = dx < 0 ? -dx : dx;
+  dy = dy < 0 ? -dy : dy;
+  if(dx > 1) return 1;
+  if(dy > 1) return 1;
+#endif // ENABLE_AXIS
   return 0;
 }
 
@@ -128,18 +156,33 @@ static int gamepad_button_set(gamepad_status_t*data, int idx, int val){
   }
 }
 
-#ifdef SIMULATION_MODE
-
-void gamepad_init(){ LOG(1, "gamepad simulation initialized", 0); }
-int gamepad_send(gamepad_status_t *status){
-  LOG(1, "gamepad report state - %x%x%x%x | %x%x%x%x | %x%x%x%x | %x%x%x%x | %x %x - %lu %lu",
+static int gamepad_log(gamepad_status_t *status){
+  LOG(1, "gamepad report state "
+      "| %x%x%x%x "
+      "| %x%x%x%x "
+      "| %x%x%x%x "
+      "| %x%x%x%x "
+      "- %x %x "
+#ifdef ENABLE_AXIS
+      "\\ %d %d %d %d "
+#endif // ENABLE_AXIS
+      "/ %lu %lu",
       status->button0, status->button1, status->button2, status->button3,
       status->button4, status->button5, status->button6, status->button7,
       status->button8, status->button9, status->buttonA, status->buttonB,
       status->buttonC, status->buttonD, status->buttonE, status->buttonF,
-      status->pad0, status->pad1, micros() - current_time_step(), current_time_step()
+      status->pad0, status->pad1,
+#ifdef ENABLE_AXIS
+      status->xAxis, status->yAxis, status->rxAxis, status->ryAxis,
+#endif // ENABLE_AXIS
+      micros() - current_time_step(), current_time_step()
    );
 }
+
+#ifdef SIMULATION_MODE
+
+void gamepad_init(){ LOG(1, "gamepad simulation initialized", 0); }
+int gamepad_send(gamepad_status_t *status){ return gamepad_log( status); }
 
 #else // ! SIMULATION_MODE
 
@@ -179,7 +222,7 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
     0x75, 0x04,        //  REPORT_SIZE (4)
     0x81, 0x02,        //  INPUT (Data,Var,Abs)
 
-/*
+#ifdef ENABLE_AXIS
     // 4 16bit Axis
     0x05, 0x01,        //   USAGE_PAGE (Generic Desktop)
     0xa1, 0x00,        //   COLLECTION (Physical)
@@ -192,7 +235,9 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
     0x75, 0x10,        //   REPORT_SIZE (16)
     0x95, 0x04,        //   REPORT_COUNT (4)
     0x81, 0x02,        //   INPUT (Data,Var,Abs)
+#endif
 
+/*
     // 2 8bit Axis
     0x09, 0x32,        //  USAGE (Z)
     0x09, 0x35,        //  USAGE (Rz)
@@ -218,14 +263,7 @@ void gamepad_init(){
 int gamepad_send(gamepad_status_t *status){
 
   HID().SendReport(REPORTID, status, sizeof(*status));
-
-  LOG(1, "gamepad report state - %x%x%x%x | %x%x%x%x | %x%x%x%x | %x%x%x%x | %x %x - %lu %lu",
-      status->button0, status->button1, status->button2, status->button3,
-      status->button4, status->button5, status->button6, status->button7,
-      status->button8, status->button9, status->buttonA, status->buttonB,
-      status->buttonC, status->buttonD, status->buttonE, status->buttonF,
-      status->pad0, status->pad1, micros() - current_time_step(), current_time_step()
-   );
+  gamepad_log(status);
 }
 
 #undef REPORTID
@@ -344,9 +382,6 @@ static int autofire_toggle(int index, int is_pressed, int is_toggled) {
 
 // autofire mode selection
 //
-#define NONE 1
-#define ASSIST 2
-#define TOGGLE 3
 static int do_autofire(int index, int is_pressed, int option) {
 #if AUTOFIRE_MODE == NONE
   return autofire_none(index, is_pressed, option);
@@ -359,9 +394,6 @@ static int do_autofire(int index, int is_pressed, int option) {
   return -1;
 #endif
 }
-#undef NONE
-#undef ASSIST
-#undef TOGGLE
 
 // Atari protocol (no paddle) -----------------------------------------------------
 
@@ -376,7 +408,6 @@ static int do_autofire(int index, int is_pressed, int option) {
 //       \________________/
 //              G       F
 //
-// . = Unused
 // G = Ground
 // U = Up
 // D = Down
@@ -390,9 +421,9 @@ static int do_autofire(int index, int is_pressed, int option) {
 
 #define ATARI_UP_PIN     13
 #define ATARI_DOWN_PIN   14
-#define ATARI_LEFT_PIN   15
-#define ATARI_RIGHT_PIN  16
-#define ATARI_FIRE_PIN   17
+#define ATARI_LEFT_PIN   25
+#define ATARI_RIGHT_PIN  26
+#define ATARI_FIRE_PIN   27
 
 #define ATARI_BUTTON_FIRE    button0
 #define ATARI_BUTTON_UP      button1
@@ -448,6 +479,92 @@ static int loop_atari(void) {
   gamepad.ATARI_BUTTON_DOWN = 0;
   gamepad.ATARI_BUTTON_LEFT = 0;
   gamepad.ATARI_BUTTON_RIGHT = 0;
+
+  // Send USB event as needed
+  if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
+  old_status = gamepad;
+
+  return 0;
+}
+
+// Atari Paddle protocol ----------------------------------------------------------
+
+//
+// Front view of famle DB9
+// ( the one at end of the paddle cable)
+//
+//        SA  FF  SF
+//    \""""""""""""""""""""""/
+//     \  O   O   O   O   O / <- DB9-pin-1
+//      \   O   O   O   O  /
+//       \________________/
+//         FA   G   R
+//
+// G  = Ground
+// R  = Return for paddle resistence
+// FF = First player Fire
+// FA = First player Angle
+// SF = Second player Fire
+// SA = Second player Angle
+//
+// Fire pin loose = button/direction is released
+// Fire pin connected to Ground pin = button/direction is pressed
+// Angle pin resistence to the Return pin is proportional to the paddle position (linear 1 Mohm, 270 degree)
+//
+
+#define ATARI_PADDLE_FIRST_FIRE_PIN     22
+#define ATARI_PADDLE_FIRST_ANGLE_PIN    34
+#define ATARI_PADDLE_SECOND_FIRE_PIN    23
+#define ATARI_PADDLE_SECOND_ANGLE_PIN   35
+
+#define ATARI_PADDLE_FIRST_BUTTON    button0
+#define ATARI_PADDLE_SECOND_BUTTON   button1
+#define ATARI_PADDLE_FIRST_AXIS      xAxis
+#define ATARI_PADDLE_SECOND_AXIS     yAxis
+
+static void setup_atari_paddle(void){
+
+  pinMode(ATARI_PADDLE_FIRST_FIRE_PIN, INPUT_PULLUP);
+  pinMode(ATARI_PADDLE_FIRST_ANGLE_PIN, INPUT_PULLUP);
+  pinMode(ATARI_PADDLE_SECOND_FIRE_PIN, INPUT_PULLUP);
+  pinMode(ATARI_PADDLE_SECOND_ANGLE_PIN, INPUT_PULLUP);
+}
+
+// If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
+// the file, resulting to invalid ones, since user types are not defined yet
+static gamepad_status_t read_atari_paddle(void);
+
+static gamepad_status_t read_atari_paddle(void) {
+  gamepad_status_t gamepad = {0};
+
+  gamepad.ATARI_PADDLE_FIRST_BUTTON =  digitalRead(ATARI_PADDLE_FIRST_FIRE_PIN);
+  gamepad.ATARI_PADDLE_SECOND_BUTTON = digitalRead(ATARI_PADDLE_SECOND_FIRE_PIN);
+#ifdef ENABLE_AXIS
+  gamepad.ATARI_PADDLE_FIRST_AXIS =    analogRead(ATARI_PADDLE_FIRST_ANGLE_PIN);
+  gamepad.ATARI_PADDLE_SECOND_AXIS =   analogRead(ATARI_PADDLE_SECOND_ANGLE_PIN);
+#endif // ENABLE_AXIS
+
+  return gamepad;
+}
+
+static int loop_atari_paddle(void) {
+  static gamepad_status_t old_status = {0};
+
+  // Read pad status + debounce
+  gamepad_status_t gamepad = read_atari_paddle();
+  gamepad = button_debounce(gamepad);
+
+  // Autofire
+  // Last parameter is always zero since atari paddle have one fire button so the
+  // TOGGLE mode can no be used for autofire
+  gamepad.ATARI_PADDLE_FIRST_BUTTON = do_autofire(0, gamepad.ATARI_PADDLE_FIRST_BUTTON, 0);
+  gamepad.ATARI_PADDLE_SECOND_BUTTON = do_autofire(1, gamepad.ATARI_PADDLE_SECOND_BUTTON, 0);
+
+#ifdef ENABLE_AXIS
+  // Axis calibration
+  gamepad.ATARI_PADDLE_FIRST_AXIS  *= 1;
+  gamepad.ATARI_PADDLE_SECOND_AXIS *= 1;
+#endif // ENABLE_AXIS
 
   // Send USB event as needed
   if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
@@ -609,11 +726,9 @@ static void loop_last(void){
   // nothing to do
 }
 
-#define SNES 1
-#define ATARI 2
-
-#if INPUT_PROTOCOL == SNES
-#elif INPUT_PROTOCOL == ATARI
+#if INPUT_PROTOCOL == ATARI
+#elif INPUT_PROTOCOL == ATARI_PADDLE
+#elif INPUT_PROTOCOL == SNES
 #else
 #error "selected INPUT_PROTOCOL is not supported"
 #endif
@@ -621,10 +736,12 @@ static void loop_last(void){
 void setup() {
   setup_first();
 
-#if INPUT_PROTOCOL == SNES
-  setup_snes();
-#elif INPUT_PROTOCOL == ATARI
+#if INPUT_PROTOCOL == ATARI
   setup_atari();
+#elif INPUT_PROTOCOL == ATARI_PADDLE
+  setup_atari_paddle();
+#elif INPUT_PROTOCOL == SNES
+  setup_snes();
 #endif
 
   setup_last();
@@ -633,15 +750,14 @@ void setup() {
 void loop(){
   loop_first();
 
-#if INPUT_PROTOCOL == SNES
-  loop_snes();
-#elif INPUT_PROTOCOL == ATARI
+#if INPUT_PROTOCOL == ATARI
   loop_atari();
+#elif INPUT_PROTOCOL == ATARI_PADDLE
+  loop_atari_paddle();
+#elif INPUT_PROTOCOL == SNES
+  loop_snes();
 #endif
 
   loop_last();
 }
-
-#undef SNES
-#undef ATARI
 
