@@ -2,14 +2,19 @@
 # USB game-pad encoder with Arduino
 
 This is a Arduino sketch to read a various pad protocols and convert them to
-USB HID events. It is focused on pads of old consoles; right now, the following
-protocol are supported: SNES, atari 2600 (compatible with commodore joystick).
+USB HID events. It is focused on pads of old consoles like the SNES.
 
 # Select the protocol
 
 By default the sketch is configured to read the SNES protocol. To change it,
-just the `INPUT_PROTOCOL` macro at beginning of the sketch must be set to one
-of the supported protocols.
+just set the `INPUT_PROTOCOL` macro at beginning of the sketch to one of the
+following supported protocols:
+
+- `SNES` - To read NES or SNES pads
+- `ATARI` - To read the old DB9 joysticks used in the the Atari 2600,
+  Commodore, and Amiga. This is in development, it is NOT TESTED YET !
+- `ATARI_PADDLE` - To read dual paddle controller for Atari 2600. This is in
+  development, it is NOT TESTED YET !
 
 # Auto-fire
 
