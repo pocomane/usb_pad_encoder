@@ -301,6 +301,24 @@ static gamepad_status_t button_debounce(gamepad_status_t button) {
   return button;
 }
 
+static int16_t moving_average(int16_t* buffer, int16_t size, int16_t newval){
+
+  int16_t* index = buffer;    // The fist item is the index to the oldest inserted value
+  int16_t* value = buffer +1; // The other items are the last N read values
+  int n = size -1;
+
+  // Update value history
+  value[*index] = newval;
+  *index += 1;
+  if(*index >= n) *index = 0;
+
+  // Calculate the average
+  int result = 0;
+  for(int k = 0; k < n; k += 1) result += value[k];
+  result /= n;
+  return result;
+}
+
 // Autofire ---------------------------------------------------------------------
 
 static int autofire_none(int index, int is_pressed, int option) {
@@ -561,6 +579,12 @@ static int loop_atari_paddle(void) {
   gamepad.ATARI_PADDLE_SECOND_BUTTON = do_autofire(1, gamepad.ATARI_PADDLE_SECOND_BUTTON, 0);
 
 #ifdef ENABLE_AXIS
+  // Moving average to reduce noise on the analog readinng
+  static int16_t first_axis_history[10] = {0};
+  static int16_t second_axis_history[10] = {0};
+  gamepad.ATARI_PADDLE_FIRST_AXIS = moving_average(first_axis_history, 10, gamepad.ATARI_PADDLE_FIRST_AXIS);
+  gamepad.ATARI_PADDLE_SECOND_AXIS = moving_average(second_axis_history, 10, gamepad.ATARI_PADDLE_SECOND_AXIS);
+
   // Axis calibration
   gamepad.ATARI_PADDLE_FIRST_AXIS  *= 1;
   gamepad.ATARI_PADDLE_SECOND_AXIS *= 1;
