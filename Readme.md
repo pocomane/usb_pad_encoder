@@ -56,7 +56,7 @@ set the maximum time between real taps to accept. Moreover, changing the
 before start the auto-fire sequence.
 
 If you selected the `TOGGLE` mode, you can use the `AUTOFIRE_SELECTOR` to chage
-the button to use as toggle in the `TOGGLE` mode (the default is `SELECT`). Note
+the button to use as toggle in the `TOGGLE` mode (the default is `select`). Note
 that some pad with few buttons (like the Atari one) can not use this mode.
 
 # Configure simulation mode

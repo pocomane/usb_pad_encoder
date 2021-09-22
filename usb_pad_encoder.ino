@@ -23,7 +23,7 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define TAP_MAX_PERIOD     (200000) // us // used in any mode except none
 #define AUTOFIRE_PERIOD    (75000)  // us // used in any mode except none
 #define AUTOFIRE_TAP_COUNT (2)      // #  // used in assit mode
-#define AUTOFIRE_SELECTOR  SELECT   // button: SELECT, START, etc // used in toggle mode
+#define AUTOFIRE_SELECTOR  select   // start, select, coin; it is used in the toggle mode; it must be one of the field of the gamepad status struct.
 
 //#define SIMULATION_MODE
 //#define DEBUG
@@ -56,29 +56,26 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define LOG(...)
 #endif
 
-#define CAT2(A, B) A ## B
-#define CAT(A, B)  CAT2(A, B)
-
 // USB HID wrapper ---------------------------------------------------------------------
 
 typedef struct {
 
-  uint8_t button0  : 1;
-  uint8_t button1  : 1;
-  uint8_t button2  : 1;
-  uint8_t button3  : 1;
-  uint8_t button4  : 1;
-  uint8_t button5  : 1;
-  uint8_t button6  : 1;
-  uint8_t button7  : 1;
-  uint8_t button8  : 1;
-  uint8_t button9  : 1;
-  uint8_t buttonA  : 1;
-  uint8_t buttonB  : 1;
-  uint8_t buttonC  : 1;
-  uint8_t buttonD  : 1;
-  uint8_t buttonE  : 1;
-  uint8_t buttonF  : 1;
+  uint8_t up:      1;
+  uint8_t down:    1;
+  uint8_t left:    1;
+  uint8_t right:   1;
+  uint8_t start:   1;
+  uint8_t select:  1;
+  uint8_t fire1:   1;
+  uint8_t fire2:   1;
+  uint8_t fire3:   1;
+  uint8_t fire4:   1;
+  uint8_t fire5:   1;
+  uint8_t fire6:   1;
+  uint8_t coin:    1;
+  uint8_t buttonD: 1;
+  uint8_t buttonE: 1;
+  uint8_t buttonF: 1;
 
   uint8_t	pad0 : 4;
   uint8_t	pad1 : 4;
@@ -99,22 +96,22 @@ typedef struct {
 } gamepad_status_t;
 
 static int gamepad_status_change(gamepad_status_t a, gamepad_status_t b){
-  if(a.button0 != b.button0) return 1;
-  if(a.button1 != b.button1) return 1;
-  if(a.button2 != b.button2) return 1;
-  if(a.button3 != b.button3) return 1;
-  if(a.button4 != b.button4) return 1;
-  if(a.button5 != b.button5) return 1;
-  if(a.button6 != b.button6) return 1;
-  if(a.button7 != b.button7) return 1;
-  if(a.button8 != b.button8) return 1;
-  if(a.button9 != b.button9) return 1;
-  if(a.buttonA != b.buttonA) return 1;
-  if(a.buttonB != b.buttonB) return 1;
-  if(a.buttonC != b.buttonC) return 1;
-  if(a.buttonD != b.buttonD) return 1;
-  if(a.buttonE != b.buttonE) return 1;
-  if(a.buttonF != b.buttonF) return 1;
+  if( a.up != b.up) return 1;
+  if( a.down != b.down) return 1;
+  if( a.left != b.left) return 1;
+  if( a.right != b.right) return 1;
+  if( a.fire1 != b.fire1) return 1;
+  if( a.fire2 != b.fire2) return 1;
+  if( a.fire3 != b.fire3) return 1;
+  if( a.fire4 != b.fire4) return 1;
+  if( a.fire5 != b.fire5) return 1;
+  if( a.fire6 != b.fire6) return 1;
+  if( a.start != b.start) return 1;
+  if( a.select != b.select) return 1;
+  if( a.coin != b.coin) return 1;
+  if( a.buttonD != b.buttonD) return 1;
+  if( a.buttonE != b.buttonE) return 1;
+  if( a.buttonF != b.buttonF) return 1;
   if(a.pad0 != b.pad0) return 1;
   if(a.pad1 != b.pad1) return 1;
 #ifdef ENABLE_AXIS
@@ -134,22 +131,23 @@ static int gamepad_status_change(gamepad_status_t a, gamepad_status_t b){
   return 0;
 }
 
+// TODO : remove this! move into the read_snes function !
 static int gamepad_button_set(gamepad_status_t*data, int idx, int val){
   switch (idx){
     default: ;
-    break; case 0x0: data->button0 = val;
-    break; case 0x1: data->button1 = val;
-    break; case 0x2: data->button2 = val;
-    break; case 0x3: data->button3 = val;
-    break; case 0x4: data->button4 = val;
-    break; case 0x5: data->button5 = val;
-    break; case 0x6: data->button6 = val;
-    break; case 0x7: data->button7 = val;
-    break; case 0x8: data->button8 = val;
-    break; case 0x9: data->button9 = val;
-    break; case 0xA: data->buttonA = val;
-    break; case 0xB: data->buttonB = val;
-    break; case 0xC: data->buttonC = val;
+    break; case 0x0: data->fire2 =   val;
+    break; case 0x1: data->fire4 =   val;
+    break; case 0x2: data->select =  val;
+    break; case 0x3: data->start =   val;
+    break; case 0x4: data->up =      val;
+    break; case 0x5: data->down =    val;
+    break; case 0x6: data->left =    val;
+    break; case 0x7: data->right =   val;
+    break; case 0x8: data->fire1 =   val;
+    break; case 0x9: data->fire3 =   val;
+    break; case 0xA: data->fire5 =   val;
+    break; case 0xB: data->fire6 =   val;
+    break; case 0xC: data->coin =    val;
     break; case 0xD: data->buttonD = val;
     break; case 0xE: data->buttonE = val;
     break; case 0xF: data->buttonF = val;
@@ -167,10 +165,10 @@ static int gamepad_log(gamepad_status_t *status){
       "\\ %d %d %d %d "
 #endif // ENABLE_AXIS
       "/ %lu %lu",
-      status->button0, status->button1, status->button2, status->button3,
-      status->button4, status->button5, status->button6, status->button7,
-      status->button8, status->button9, status->buttonA, status->buttonB,
-      status->buttonC, status->buttonD, status->buttonE, status->buttonF,
+      status->up, status->down, status->left, status->right,
+      status->fire1, status->fire2, status->fire3, status->fire4,
+      status->fire5, status->fire6, status->start, status->select,
+      status->coin, status->buttonD, status->buttonE, status->buttonF,
       status->pad0, status->pad1,
 #ifdef ENABLE_AXIS
       status->xAxis, status->yAxis, status->rxAxis, status->ryAxis,
@@ -505,19 +503,6 @@ static int do_autofire(int index, int is_pressed, int option) {
 #define FULLSWITCH_FIRE_5_PIN  14
 #define FULLSWITCH_FIRE_6_PIN  15
 
-#define FULLSWITCH_BUTTON_UP      button0
-#define FULLSWITCH_BUTTON_DOWN    button1
-#define FULLSWITCH_BUTTON_LEFT    button2
-#define FULLSWITCH_BUTTON_RIGHT   button3
-#define FULLSWITCH_BUTTON_FIRE_1  button4
-#define FULLSWITCH_BUTTON_FIRE_2  button5
-#define FULLSWITCH_BUTTON_FIRE_3  button6
-#define FULLSWITCH_BUTTON_FIRE_4  button7
-#define FULLSWITCH_BUTTON_FIRE_5  button8
-#define FULLSWITCH_BUTTON_FIRE_6  button9
-#define FULLSWITCH_BUTTON_START   buttonA
-#define FULLSWITCH_BUTTON_COIN    buttonB
-
 static void setup_fullswitch(void){
 
   pinMode(FULLSWITCH_COIN_PIN, INPUT_PULLUP);
@@ -541,18 +526,18 @@ static gamepad_status_t read_fullswitch(void);
 static gamepad_status_t read_fullswitch(void) {
   gamepad_status_t gamepad = {0};
 
-  gamepad.FULLSWITCH_BUTTON_COIN =   !digitalRead(FULLSWITCH_COIN_PIN);
-  gamepad.FULLSWITCH_BUTTON_START =  !digitalRead(FULLSWITCH_START_PIN);
-  gamepad.FULLSWITCH_BUTTON_UP =     !digitalRead(FULLSWITCH_UP_PIN);
-  gamepad.FULLSWITCH_BUTTON_DOWN =   !digitalRead(FULLSWITCH_DOWN_PIN);
-  gamepad.FULLSWITCH_BUTTON_LEFT =   !digitalRead(FULLSWITCH_LEFT_PIN);
-  gamepad.FULLSWITCH_BUTTON_RIGHT =  !digitalRead(FULLSWITCH_RIGHT_PIN);
-  gamepad.FULLSWITCH_BUTTON_FIRE_1 = !digitalRead(FULLSWITCH_FIRE_1_PIN);
-  gamepad.FULLSWITCH_BUTTON_FIRE_2 = !digitalRead(FULLSWITCH_FIRE_2_PIN);
-  gamepad.FULLSWITCH_BUTTON_FIRE_3 = !digitalRead(FULLSWITCH_FIRE_3_PIN);
-  gamepad.FULLSWITCH_BUTTON_FIRE_4 = !digitalRead(FULLSWITCH_FIRE_4_PIN);
-  gamepad.FULLSWITCH_BUTTON_FIRE_5 = !digitalRead(FULLSWITCH_FIRE_5_PIN);
-  gamepad.FULLSWITCH_BUTTON_FIRE_6 = !digitalRead(FULLSWITCH_FIRE_6_PIN);
+  gamepad.coin =  !digitalRead(FULLSWITCH_COIN_PIN);
+  gamepad.start = !digitalRead(FULLSWITCH_START_PIN);
+  gamepad.up =    !digitalRead(FULLSWITCH_UP_PIN);
+  gamepad.down =  !digitalRead(FULLSWITCH_DOWN_PIN);
+  gamepad.left =  !digitalRead(FULLSWITCH_LEFT_PIN);
+  gamepad.right = !digitalRead(FULLSWITCH_RIGHT_PIN);
+  gamepad.fire1 = !digitalRead(FULLSWITCH_FIRE_1_PIN);
+  gamepad.fire2 = !digitalRead(FULLSWITCH_FIRE_2_PIN);
+  gamepad.fire3 = !digitalRead(FULLSWITCH_FIRE_3_PIN);
+  gamepad.fire4 = !digitalRead(FULLSWITCH_FIRE_4_PIN);
+  gamepad.fire5 = !digitalRead(FULLSWITCH_FIRE_5_PIN);
+  gamepad.fire6 = !digitalRead(FULLSWITCH_FIRE_6_PIN);
 
   return gamepad;
 }
@@ -565,25 +550,24 @@ static int loop_fullswitch(void) {
   gamepad = button_debounce(gamepad);
 
   // Autofire
-  int opt = gamepad.CAT(FULLSWITCH_BUTTON_, AUTOFIRE_SELECTOR); // e.g. CAT(...) -> FULLSWITCH_BUTTON_SELECT // TODO : clean up !
-  gamepad.FULLSWITCH_BUTTON_FIRE_1 = do_autofire(0, gamepad.FULLSWITCH_BUTTON_FIRE_1, opt);
-  gamepad.FULLSWITCH_BUTTON_FIRE_2 = do_autofire(1, gamepad.FULLSWITCH_BUTTON_FIRE_2, opt);
-  gamepad.FULLSWITCH_BUTTON_FIRE_3 = do_autofire(2, gamepad.FULLSWITCH_BUTTON_FIRE_3, opt);
-  gamepad.FULLSWITCH_BUTTON_FIRE_4 = do_autofire(3, gamepad.FULLSWITCH_BUTTON_FIRE_4, opt);
-  gamepad.FULLSWITCH_BUTTON_FIRE_5 = do_autofire(4, gamepad.FULLSWITCH_BUTTON_FIRE_5, opt);
-  gamepad.FULLSWITCH_BUTTON_FIRE_6 = do_autofire(5, gamepad.FULLSWITCH_BUTTON_FIRE_6, opt);
+  gamepad.fire1 = do_autofire(0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire2 = do_autofire(1, gamepad.fire2, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire3 = do_autofire(2, gamepad.fire3, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire4 = do_autofire(3, gamepad.fire4, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire5 = do_autofire(4, gamepad.fire5, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire6 = do_autofire(5, gamepad.fire6, gamepad.AUTOFIRE_SELECTOR);
 
   // Map dpad to an hat (comment to map the dpad as regular buttons)
   gamepad.pad0 = dpad_value(
-    gamepad.FULLSWITCH_BUTTON_UP,
-    gamepad.FULLSWITCH_BUTTON_DOWN,
-    gamepad.FULLSWITCH_BUTTON_LEFT,
-    gamepad.FULLSWITCH_BUTTON_RIGHT
+    gamepad.up,
+    gamepad.down,
+    gamepad.left,
+    gamepad.right
   );
-  gamepad.FULLSWITCH_BUTTON_UP = 0;
-  gamepad.FULLSWITCH_BUTTON_DOWN = 0;
-  gamepad.FULLSWITCH_BUTTON_LEFT = 0;
-  gamepad.FULLSWITCH_BUTTON_RIGHT = 0;
+  gamepad.up = 0;
+  gamepad.down = 0;
+  gamepad.left = 0;
+  gamepad.right = 0;
 
   // Send USB event as needed
   if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
@@ -622,11 +606,6 @@ static int loop_fullswitch(void) {
 #define ATARI_PADDLE_SECOND_FIRE_PIN    23
 #define ATARI_PADDLE_SECOND_ANGLE_PIN   35
 
-#define ATARI_PADDLE_FIRST_BUTTON    button0
-#define ATARI_PADDLE_SECOND_BUTTON   button1
-#define ATARI_PADDLE_FIRST_AXIS      xAxis
-#define ATARI_PADDLE_SECOND_AXIS     yAxis
-
 static void setup_atari_paddle(void){
 
   pinMode(ATARI_PADDLE_FIRST_FIRE_PIN, INPUT_PULLUP);
@@ -642,11 +621,11 @@ static gamepad_status_t read_atari_paddle(void);
 static gamepad_status_t read_atari_paddle(void) {
   gamepad_status_t gamepad = {0};
 
-  gamepad.ATARI_PADDLE_FIRST_BUTTON =  digitalRead(ATARI_PADDLE_FIRST_FIRE_PIN);
-  gamepad.ATARI_PADDLE_SECOND_BUTTON = digitalRead(ATARI_PADDLE_SECOND_FIRE_PIN);
+  gamepad.fire1 = digitalRead(ATARI_PADDLE_FIRST_FIRE_PIN);
+  gamepad.fire2 = digitalRead(ATARI_PADDLE_SECOND_FIRE_PIN);
 #ifdef ENABLE_AXIS
-  gamepad.ATARI_PADDLE_FIRST_AXIS =    analogRead(ATARI_PADDLE_FIRST_ANGLE_PIN);
-  gamepad.ATARI_PADDLE_SECOND_AXIS =   analogRead(ATARI_PADDLE_SECOND_ANGLE_PIN);
+  gamepad.xAxis = analogRead(ATARI_PADDLE_FIRST_ANGLE_PIN);
+  gamepad.yAxis = analogRead(ATARI_PADDLE_SECOND_ANGLE_PIN);
 #endif // ENABLE_AXIS
 
   return gamepad;
@@ -662,19 +641,19 @@ static int loop_atari_paddle(void) {
   // Autofire
   // Last parameter is always zero since atari paddle have one fire button so the
   // TOGGLE mode can no be used for autofire
-  gamepad.ATARI_PADDLE_FIRST_BUTTON = do_autofire(0, gamepad.ATARI_PADDLE_FIRST_BUTTON, 0);
-  gamepad.ATARI_PADDLE_SECOND_BUTTON = do_autofire(1, gamepad.ATARI_PADDLE_SECOND_BUTTON, 0);
+  gamepad.fire1 = do_autofire(0, gamepad.fire1, 0);
+  gamepad.fire2 = do_autofire(1, gamepad.fire2, 0);
 
 #ifdef ENABLE_AXIS
   // Moving average to reduce noise on the analog readinng
   static int16_t first_axis_history[10] = {0};
   static int16_t second_axis_history[10] = {0};
-  gamepad.ATARI_PADDLE_FIRST_AXIS = moving_average(first_axis_history, 10, gamepad.ATARI_PADDLE_FIRST_AXIS);
-  gamepad.ATARI_PADDLE_SECOND_AXIS = moving_average(second_axis_history, 10, gamepad.ATARI_PADDLE_SECOND_AXIS);
+  gamepad.xAxis = moving_average(first_axis_history, 10, gamepad.xAxis);
+  gamepad.yAxis = moving_average(second_axis_history, 10, gamepad.yAxis);
 
   // Axis calibration
-  gamepad.ATARI_PADDLE_FIRST_AXIS  *= 1;
-  gamepad.ATARI_PADDLE_SECOND_AXIS *= 1;
+  gamepad.xAxis *= 1;
+  gamepad.yAxis *= 1;
 #endif // ENABLE_AXIS
 
   // Send USB event as needed
@@ -712,19 +691,6 @@ static int loop_atari_paddle(void) {
 #define SNES_LATCH_PIN  7
 #define SNES_CLOCK_PIN  8
 #define SNES_DATA_PIN   9
-  
-#define SNES_BUTTON_B        button0
-#define SNES_BUTTON_Y        button1
-#define SNES_BUTTON_SELECT   button2
-#define SNES_BUTTON_START    button3
-#define SNES_BUTTON_UP       button4
-#define SNES_BUTTON_DOWN     button5
-#define SNES_BUTTON_LEFT     button6
-#define SNES_BUTTON_RIGHT    button7
-#define SNES_BUTTON_A        button8
-#define SNES_BUTTON_X        button9
-#define SNES_BUTTON_L        buttonA
-#define SNES_BUTTON_R        buttonB
 
 static void setup_snes(void){
 
@@ -769,23 +735,22 @@ static int loop_snes(void) {
   gamepad_status_t gamepad = read_snes();
 
   // Autofire
-  int opt = gamepad.CAT(SNES_BUTTON_, AUTOFIRE_SELECTOR); // e.g. CAT(...) -> SNES_BUTTON_SELECT // TODO : clean up !
-  gamepad.SNES_BUTTON_B = do_autofire(0, gamepad.SNES_BUTTON_B, opt);
-  gamepad.SNES_BUTTON_Y = do_autofire(1, gamepad.SNES_BUTTON_Y, opt);
-  gamepad.SNES_BUTTON_A = do_autofire(2, gamepad.SNES_BUTTON_A, opt);
-  gamepad.SNES_BUTTON_X = do_autofire(3, gamepad.SNES_BUTTON_X, opt);
+  gamepad.fire1 = do_autofire(0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire2 = do_autofire(1, gamepad.fire2, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire3 = do_autofire(2, gamepad.fire3, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire4 = do_autofire(3, gamepad.fire4, gamepad.AUTOFIRE_SELECTOR);
 
   // Map dpad to an hat (comment to map the dpad as regular buttons)
   gamepad.pad0 = dpad_value(
-    gamepad.SNES_BUTTON_UP,
-    gamepad.SNES_BUTTON_DOWN,
-    gamepad.SNES_BUTTON_LEFT,
-    gamepad.SNES_BUTTON_RIGHT
+    gamepad.up,
+    gamepad.down,
+    gamepad.left,
+    gamepad.right
   );
-  gamepad.SNES_BUTTON_UP = 0;
-  gamepad.SNES_BUTTON_DOWN = 0;
-  gamepad.SNES_BUTTON_LEFT = 0;
-  gamepad.SNES_BUTTON_RIGHT = 0;
+  gamepad.up = 0;
+  gamepad.down = 0;
+  gamepad.left = 0;
+  gamepad.right = 0;
 
   // Send USB event as needed
   if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
