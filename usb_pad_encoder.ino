@@ -17,7 +17,7 @@ The "USB pad encoder with Arduino"'s Author, 2021
 
 // Config -------------------------------------------------------------------------
 
-#define INPUT_PROTOCOL   SNES // ATARI, ATARI_PADDLE, SNES
+#define INPUT_PROTOCOL   SNES // FULLSWITCH, ATARI_PADDLE, SNES
 
 #define AUTOFIRE_MODE      ASSIST   // NONE, ASSIST, TOGGLE
 #define TAP_MAX_PERIOD     (200000) // us // used in any mode except none
@@ -38,7 +38,7 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define USE_SERIAL
 #endif
 
-#define ATARI        1
+#define FULLSWITCH   1
 #define ATARI_PADDLE 2
 #define SNES         3
 
@@ -325,7 +325,7 @@ static int autofire_none(int index, int is_pressed, int option) {
   return is_pressed;
 }
 
-#define ASSISTED_BUTTON_NUMBER 4
+#define ASSISTED_BUTTON_NUMBER 6
 static int autofire_assist(int index, int is_pressed, int option) {
   if (index < 0 || index >= ASSISTED_BUTTON_NUMBER){
     LOG(1, "autofire not supported for button %d", index);
@@ -413,10 +413,18 @@ static int do_autofire(int index, int is_pressed, int option) {
 #endif
 }
 
-// Atari protocol (no paddle) -----------------------------------------------------
+// SwitchFull protocol ------------------------------------------------------------
 
+// Different controllers with the same logic:
+// - One switch for each read pin
+// - Pin loose <-> button/direction is released
+// - Pin at ground <-> button/direction is pressed
+// - Some controllers have power pin
 //
-// Front view of famle DB9
+
+// Atari/Commodore/Amiga
+//
+// Front view of famale DB9
 // ( the one at end of the joistick cable)
 //
 //            R   L   D   U
@@ -431,72 +439,151 @@ static int do_autofire(int index, int is_pressed, int option) {
 // D = Down
 // L = Left
 // R = Right
-// F = Fire
-//
-// Pin loose = button/direction is released
-// Pin at ground = button/direction is pressed
+// F = Fire (1)
 //
 
-#define ATARI_UP_PIN     13
-#define ATARI_DOWN_PIN   14
-#define ATARI_LEFT_PIN   25
-#define ATARI_RIGHT_PIN  26
-#define ATARI_FIRE_PIN   27
+// Master system
+//
+// Front view of famle DB9
+// ( the one at end of the joistick cable)
+//
+//            R   L   D   U
+//    \""""""""""""""""""""""/
+//     \  O   O   O   O   O / <- DB9-pin-1
+//      \   O   O   O   O  /
+//       \________________/
+//          2   G   V   1
+//
+// G = Ground
+// U = Up
+// D = Down
+// L = Left
+// R = Right
+// 1 = Fire 1 ( / Start)
+// 2 = Fire 2
+// V = +5V (it is really needed ?)
+//
 
-#define ATARI_BUTTON_FIRE    button0
-#define ATARI_BUTTON_UP      button1
-#define ATARI_BUTTON_DOWN    button2
-#define ATARI_BUTTON_LEFT    button3
-#define ATARI_BUTTON_RIGHT   button4
+// Jamma
+//
+// Front view of the female jamma connector
+//
+//                                      +**
+//  Player 1 -  G..... ........CSUDLR123456.
+//
+//    jamma    |UUUUUU UUUUUUUUUUUUUUUUUUUUU|
+//  connector  |AAAAAA AAAAAAAAAAAAAAAAAAAAA|
+//
+//  Player 2 -  G..... ........CSUDLR123456.
+//                                      +**
+//
+// - It need an arduono for each player
+// + Not standard but very common extension
+// * Not standard and uncommon extension
+//
+// G = Ground
+// C = Coin
+// S = Start
+// U = Up
+// D = Down
+// L = Left
+// R = Right
+// 1-6 = Fire 1-6
+// . = not used for player controls
+//
 
-static void setup_atari(void){
+#define FULLSWITCH_COIN_PIN     2
+#define FULLSWITCH_START_PIN    3
+#define FULLSWITCH_UP_PIN       4
+#define FULLSWITCH_DOWN_PIN     5
+#define FULLSWITCH_LEFT_PIN     6
+#define FULLSWITCH_RIGHT_PIN    7
+#define FULLSWITCH_FIRE_1_PIN   8
+#define FULLSWITCH_FIRE_2_PIN   9
+#define FULLSWITCH_FIRE_3_PIN  10
+#define FULLSWITCH_FIRE_4_PIN  16
+#define FULLSWITCH_FIRE_5_PIN  14
+#define FULLSWITCH_FIRE_6_PIN  15
 
-  pinMode(ATARI_UP_PIN, INPUT_PULLUP);
-  pinMode(ATARI_DOWN_PIN, INPUT_PULLUP);
-  pinMode(ATARI_LEFT_PIN, INPUT_PULLUP);
-  pinMode(ATARI_RIGHT_PIN, INPUT_PULLUP);
-  pinMode(ATARI_FIRE_PIN, INPUT_PULLUP);
+#define FULLSWITCH_BUTTON_UP      button0
+#define FULLSWITCH_BUTTON_DOWN    button1
+#define FULLSWITCH_BUTTON_LEFT    button2
+#define FULLSWITCH_BUTTON_RIGHT   button3
+#define FULLSWITCH_BUTTON_FIRE_1  button4
+#define FULLSWITCH_BUTTON_FIRE_2  button5
+#define FULLSWITCH_BUTTON_FIRE_3  button6
+#define FULLSWITCH_BUTTON_FIRE_4  button7
+#define FULLSWITCH_BUTTON_FIRE_5  button8
+#define FULLSWITCH_BUTTON_FIRE_6  button9
+#define FULLSWITCH_BUTTON_START   buttonA
+#define FULLSWITCH_BUTTON_COIN    buttonB
+
+static void setup_fullswitch(void){
+
+  pinMode(FULLSWITCH_COIN_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_START_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_UP_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_DOWN_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_LEFT_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_RIGHT_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_FIRE_1_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_FIRE_2_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_FIRE_3_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_FIRE_4_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_FIRE_5_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_FIRE_6_PIN, INPUT_PULLUP);
 }
 
 // If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
 // the file, resulting to invalid ones, since user types are not defined yet
-static gamepad_status_t read_atari(void);
+static gamepad_status_t read_fullswitch(void);
 
-static gamepad_status_t read_atari(void) {
+static gamepad_status_t read_fullswitch(void) {
   gamepad_status_t gamepad = {0};
 
-  gamepad.ATARI_BUTTON_FIRE =  !digitalRead(ATARI_FIRE_PIN);
-  gamepad.ATARI_BUTTON_UP =    !digitalRead(ATARI_UP_PIN);
-  gamepad.ATARI_BUTTON_DOWN =  !digitalRead(ATARI_DOWN_PIN);
-  gamepad.ATARI_BUTTON_LEFT =  !digitalRead(ATARI_LEFT_PIN);
-  gamepad.ATARI_BUTTON_RIGHT = !digitalRead(ATARI_RIGHT_PIN);
+  gamepad.FULLSWITCH_BUTTON_COIN =   !digitalRead(FULLSWITCH_COIN_PIN);
+  gamepad.FULLSWITCH_BUTTON_START =  !digitalRead(FULLSWITCH_START_PIN);
+  gamepad.FULLSWITCH_BUTTON_UP =     !digitalRead(FULLSWITCH_UP_PIN);
+  gamepad.FULLSWITCH_BUTTON_DOWN =   !digitalRead(FULLSWITCH_DOWN_PIN);
+  gamepad.FULLSWITCH_BUTTON_LEFT =   !digitalRead(FULLSWITCH_LEFT_PIN);
+  gamepad.FULLSWITCH_BUTTON_RIGHT =  !digitalRead(FULLSWITCH_RIGHT_PIN);
+  gamepad.FULLSWITCH_BUTTON_FIRE_1 = !digitalRead(FULLSWITCH_FIRE_1_PIN);
+  gamepad.FULLSWITCH_BUTTON_FIRE_2 = !digitalRead(FULLSWITCH_FIRE_2_PIN);
+  gamepad.FULLSWITCH_BUTTON_FIRE_3 = !digitalRead(FULLSWITCH_FIRE_3_PIN);
+  gamepad.FULLSWITCH_BUTTON_FIRE_4 = !digitalRead(FULLSWITCH_FIRE_4_PIN);
+  gamepad.FULLSWITCH_BUTTON_FIRE_5 = !digitalRead(FULLSWITCH_FIRE_5_PIN);
+  gamepad.FULLSWITCH_BUTTON_FIRE_6 = !digitalRead(FULLSWITCH_FIRE_6_PIN);
 
   return gamepad;
 }
 
-static int loop_atari(void) {
+static int loop_fullswitch(void) {
   static gamepad_status_t old_status = {0};
 
   // Read pad status + debounce
-  gamepad_status_t gamepad = read_atari();
+  gamepad_status_t gamepad = read_fullswitch();
   gamepad = button_debounce(gamepad);
 
   // Autofire
-  // Last parameter is always zero since atari pad have one fire button so the
-  // TOGGLE mode can no be used for autofire
-  gamepad.ATARI_BUTTON_FIRE = do_autofire(0, gamepad.ATARI_BUTTON_FIRE, 0);
+  int opt = gamepad.CAT(FULLSWITCH_BUTTON_, AUTOFIRE_SELECTOR); // e.g. CAT(...) -> FULLSWITCH_BUTTON_SELECT // TODO : clean up !
+  gamepad.FULLSWITCH_BUTTON_FIRE_1 = do_autofire(0, gamepad.FULLSWITCH_BUTTON_FIRE_1, opt);
+  gamepad.FULLSWITCH_BUTTON_FIRE_2 = do_autofire(1, gamepad.FULLSWITCH_BUTTON_FIRE_2, opt);
+  gamepad.FULLSWITCH_BUTTON_FIRE_3 = do_autofire(2, gamepad.FULLSWITCH_BUTTON_FIRE_3, opt);
+  gamepad.FULLSWITCH_BUTTON_FIRE_4 = do_autofire(3, gamepad.FULLSWITCH_BUTTON_FIRE_4, opt);
+  gamepad.FULLSWITCH_BUTTON_FIRE_5 = do_autofire(4, gamepad.FULLSWITCH_BUTTON_FIRE_5, opt);
+  gamepad.FULLSWITCH_BUTTON_FIRE_6 = do_autofire(5, gamepad.FULLSWITCH_BUTTON_FIRE_6, opt);
 
   // Map dpad to an hat (comment to map the dpad as regular buttons)
   gamepad.pad0 = dpad_value(
-    gamepad.ATARI_BUTTON_UP,
-    gamepad.ATARI_BUTTON_DOWN,
-    gamepad.ATARI_BUTTON_LEFT,
-    gamepad.ATARI_BUTTON_RIGHT
+    gamepad.FULLSWITCH_BUTTON_UP,
+    gamepad.FULLSWITCH_BUTTON_DOWN,
+    gamepad.FULLSWITCH_BUTTON_LEFT,
+    gamepad.FULLSWITCH_BUTTON_RIGHT
   );
-  gamepad.ATARI_BUTTON_UP = 0;
-  gamepad.ATARI_BUTTON_DOWN = 0;
-  gamepad.ATARI_BUTTON_LEFT = 0;
-  gamepad.ATARI_BUTTON_RIGHT = 0;
+  gamepad.FULLSWITCH_BUTTON_UP = 0;
+  gamepad.FULLSWITCH_BUTTON_DOWN = 0;
+  gamepad.FULLSWITCH_BUTTON_LEFT = 0;
+  gamepad.FULLSWITCH_BUTTON_RIGHT = 0;
 
   // Send USB event as needed
   if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
@@ -678,9 +765,8 @@ static gamepad_status_t read_snes(void) {
 static int loop_snes(void) {
   static gamepad_status_t old_status = {0};
 
-  // Read pad status + debounce
+  // Read pad status (no debounce needed since it is handled by the SNES HW)
   gamepad_status_t gamepad = read_snes();
-  // gamepad = button_debounce(gamepad); // No debounce needed ? SNES HW should address it !
 
   // Autofire
   int opt = gamepad.CAT(SNES_BUTTON_, AUTOFIRE_SELECTOR); // e.g. CAT(...) -> SNES_BUTTON_SELECT // TODO : clean up !
@@ -750,7 +836,7 @@ static void loop_last(void){
   // nothing to do
 }
 
-#if INPUT_PROTOCOL == ATARI
+#if INPUT_PROTOCOL == FULLSWITCH
 #elif INPUT_PROTOCOL == ATARI_PADDLE
 #elif INPUT_PROTOCOL == SNES
 #else
@@ -760,8 +846,8 @@ static void loop_last(void){
 void setup() {
   setup_first();
 
-#if INPUT_PROTOCOL == ATARI
-  setup_atari();
+#if INPUT_PROTOCOL == FULLSWITCH
+  setup_fullswitch();
 #elif INPUT_PROTOCOL == ATARI_PADDLE
   setup_atari_paddle();
 #elif INPUT_PROTOCOL == SNES
@@ -774,8 +860,8 @@ void setup() {
 void loop(){
   loop_first();
 
-#if INPUT_PROTOCOL == ATARI
-  loop_atari();
+#if INPUT_PROTOCOL == FULLSWITCH
+  loop_fullswitch();
 #elif INPUT_PROTOCOL == ATARI_PADDLE
   loop_atari_paddle();
 #elif INPUT_PROTOCOL == SNES

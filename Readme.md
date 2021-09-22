@@ -11,8 +11,8 @@ just set the `INPUT_PROTOCOL` macro at beginning of the sketch to one of the
 following supported protocols:
 
 - `SNES` - To read NES or SNES pads
-- `ATARI` - To read the old DB9 joysticks used in the the Atari 2600,
-  Commodore, and Amiga. This is in development, it is NOT TESTED YET !
+- `FULLSWITCH` - To read the controllers made fully of switches, like Atari 2600,
+  Commodore, Amiga and JAMMA. This is in development, it is NOT TESTED YET !
 - `ATARI_PADDLE` - To read dual paddle controller for Atari 2600. This is in
   development, it is NOT TESTED YET !
 
