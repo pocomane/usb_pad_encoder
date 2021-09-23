@@ -75,7 +75,7 @@ static void log(const char* file, int line, const char *format, ...){
 #define LOG(C, ...) do{ if( C) log(__FILE__, __LINE__, __VA_ARGS__);} while(0)
 #endif // USE_SERIAL
 
-static int  bitflip(void *target, int idx){           *(unsigned long*) target ^=  (1<<(idx));}
+static void bitflip(void *target, int idx){           *(unsigned long*) target ^=  (1<<(idx));}
 static int  bitget( void *target, int idx){ return !!(*(unsigned long*) target &   (1<<(idx)));}
 static void biton(  void *target, int idx){           *(unsigned long*) target |=  (1<<(idx));}
 static void bitoff( void *target, int idx){           *(unsigned long*) target &= ~(1<<(idx));}
@@ -159,7 +159,7 @@ static int gamepad_status_change(gamepad_status_t a, gamepad_status_t b){
 }
 
 static unsigned long current_time_step(void);
-static int gamepad_log(gamepad_status_t *status){
+static void gamepad_log(gamepad_status_t *status){
   LOG(1, "gamepad report state "
       "| %x%x%x%x "
       "| %x%x%x%x "
@@ -196,7 +196,7 @@ int gamepad_send(gamepad_status_t *status){ return gamepad_log( status); }
 
 #define REPORTID (0x06)
 
-static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
+static const uint8_t gamepad_hid_descriptor[] = {
 
   // Gamepad
   0x05, 0x01,        //  USAGE_PAGE (Generic Desktop)
@@ -263,7 +263,7 @@ void gamepad_init(){
   LOG(1, "gamepad initialized", 0);
 }
 
-int gamepad_send(gamepad_status_t *status){
+void gamepad_send(gamepad_status_t *status){
 
   HID().SendReport(REPORTID, status, sizeof(*status));
   gamepad_log(status);
