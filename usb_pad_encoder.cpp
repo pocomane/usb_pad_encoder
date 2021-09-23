@@ -3,7 +3,7 @@
 This is free and unencumbered work released into the public domain.
 
 Should the previous statement, for any reason, be judged legally invalid or
-eneffective under applicable law, the work is made avaiable under the terms of one
+uneffective under applicable law, the work is made avaiable under the terms of one
 of the following licences:
 
 - Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
@@ -17,7 +17,7 @@ The "USB pad encoder with Arduino"'s Author, 2021
 
 #include <Arduino.h>
 
-// Config -------------------------------------------------------------------------
+// Configuration ------------------------------------------------------------------
 
 #define INPUT_PROTOCOL   SNES // FULLSWITCH, ATARI_PADDLE, SNES
 
@@ -32,9 +32,9 @@ The "USB pad encoder with Arduino"'s Author, 2021
 
 // for debug/logging only
 #define SERIAL_BPS 9600 // e.g. 32u4
-#define SERIAL_EOL "\n"
+#define SERIAL_EOL "\n\r"
 
-// Generic routines and macros ---------------------------------------------------------------------
+// Configuration check and expansion ---------------------------------------------------------------
 
 #if defined(DEBUG) || defined(SIMULATION_MODE)
 #define USE_SERIAL
@@ -52,11 +52,21 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define ENABLE_AXIS
 #endif // ATARI_PADDLE
 
+// Generic routines and macros ---------------------------------------------------------------------
+
 #ifdef USE_SERIAL
 #define LOG(C, ...) if (C) do { Serial.print(__FILE__); Serial.print(":"); Serial.print(__LINE__); Serial.print(" "); char __L[256]; snprintf(__L,255,__VA_ARGS__); __L[255] = '\0'; Serial.print(__L); Serial.print(SERIAL_EOL); } while(0)
 #else
 #define LOG(...)
 #endif
+
+static int  bitflip(void *target, int idx){           *(unsigned long*) target ^=  (1<<(idx));}
+static int  bitget( void *target, int idx){ return !!(*(unsigned long*) target &   (1<<(idx)));}
+static void biton(  void *target, int idx){           *(unsigned long*) target |=  (1<<(idx));}
+static void bitoff( void *target, int idx){           *(unsigned long*) target &= ~(1<<(idx));}
+static void bitset( void *target, int idx, int value){
+  value ? biton(target, idx) : bitoff(target, idx);
+}
 
 // USB HID wrapper ---------------------------------------------------------------------
 
@@ -133,29 +143,7 @@ static int gamepad_status_change(gamepad_status_t a, gamepad_status_t b){
   return 0;
 }
 
-// TODO : remove this! move into the read_snes function !
-static int gamepad_button_set(gamepad_status_t*data, int idx, int val){
-  switch (idx){
-    default: ;
-    break; case 0x0: data->fire2 =   val;
-    break; case 0x1: data->fire4 =   val;
-    break; case 0x2: data->select =  val;
-    break; case 0x3: data->start =   val;
-    break; case 0x4: data->up =      val;
-    break; case 0x5: data->down =    val;
-    break; case 0x6: data->left =    val;
-    break; case 0x7: data->right =   val;
-    break; case 0x8: data->fire1 =   val;
-    break; case 0x9: data->fire3 =   val;
-    break; case 0xA: data->fire5 =   val;
-    break; case 0xB: data->fire6 =   val;
-    break; case 0xC: data->coin =    val;
-    break; case 0xD: data->buttonD = val;
-    break; case 0xE: data->buttonE = val;
-    break; case 0xF: data->buttonF = val;
-  }
-}
-
+static unsigned long current_time_step(void);
 static int gamepad_log(gamepad_status_t *status){
   LOG(1, "gamepad report state "
       "| %x%x%x%x "
@@ -296,10 +284,35 @@ static int dpad_value(int up, int down, int left, int right) {
 // the file, resulting to invalid ones, since user types are not defined yet
 static gamepad_status_t button_debounce(gamepad_status_t button);
 
+#define BTNUM 16
 static gamepad_status_t button_debounce(gamepad_status_t button) {
-  // TODO : implement !
+  static unsigned char last_value[BTNUM] = {0};
+  static unsigned long last_change[BTNUM] = {0};
+  const unsigned long now = current_time_step();
+
+  for( int k = 0; k < BTNUM; k += 1){
+
+    if( last_change[k] == 0){
+      LOG(1,"debouncing inited"); // TODO : deleting this the compilation fails. WHY ???????????????????
+      // Debounce initialization
+      int current = bitget( &button, k);
+      last_change[k] = now;
+      last_value[k] = current;
+
+    } else if( now - last_change[k] < 5000 /*us*/){
+      // Mask unwanted bounce
+      bitset( &button, k, last_value[k]);
+
+    } else {
+      // Debouncing passed, keep the new value
+      int current = bitget( &button, k);
+      if(last_value[k] != current) last_change[k] = now;
+      last_value[k] = current;
+    }
+  }
   return button;
 }
+#undef BTNUM
 
 static int16_t moving_average(int16_t* buffer, int16_t size, int16_t newval){
 
@@ -712,6 +725,7 @@ static void setup_snes(void){
 static gamepad_status_t read_snes(void);
 
 static gamepad_status_t read_snes(void) {
+  const int button_map[] = {8,10,6,5, 0,1,2,3, 7,9,11,12, };
   gamepad_status_t gamepad = {0};
 
   digitalWrite(SNES_LATCH_PIN, HIGH);
@@ -722,7 +736,7 @@ static gamepad_status_t read_snes(void) {
   for(int i = 0; i < 12; i++){
       digitalWrite(SNES_CLOCK_PIN, LOW);
       delayMicroseconds(6);
-      gamepad_button_set(&gamepad, i, !digitalRead(SNES_DATA_PIN));
+      bitset( &gamepad, button_map[i], !digitalRead(SNES_DATA_PIN));
       digitalWrite(SNES_CLOCK_PIN, HIGH);
       delayMicroseconds(6);
   }
@@ -785,6 +799,8 @@ void setup_last() {
   digitalWrite(LED_BUILTIN_RX, HIGH);
   digitalWrite(LED_BUILTIN_TX, HIGH);
 #endif // LED_BUILTIN_TX
+
+  LOG(1, "Setup completed");
 }
 
 static void loop_first(void){
