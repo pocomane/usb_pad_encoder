@@ -54,11 +54,26 @@ The "USB pad encoder with Arduino"'s Author, 2021
 
 // Generic routines and macros ---------------------------------------------------------------------
 
-#ifdef USE_SERIAL
-#define LOG(C, ...) if (C) do { Serial.print(__FILE__); Serial.print(":"); Serial.print(__LINE__); Serial.print(" "); char __L[256]; snprintf(__L,255,__VA_ARGS__); __L[255] = '\0'; Serial.print(__L); Serial.print(SERIAL_EOL); } while(0)
-#else
+#ifndef USE_SERIAL
 #define LOG(...)
-#endif
+#else // USE_SERIAL
+static void log(const char* file, int line, const char *format, ...){
+
+  char linebuffer[256];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(linebuffer, sizeof(linebuffer), format, args);
+  va_end(args);
+
+  Serial.print(file);
+  Serial.print(":");
+  Serial.print(line);
+  Serial.print(" ");
+  Serial.print(linebuffer);
+  Serial.print(SERIAL_EOL);
+}
+#define LOG(C, ...) do{ if( C) log(__FILE__, __LINE__, __VA_ARGS__);} while(0)
+#endif // USE_SERIAL
 
 static int  bitflip(void *target, int idx){           *(unsigned long*) target ^=  (1<<(idx));}
 static int  bitget( void *target, int idx){ return !!(*(unsigned long*) target &   (1<<(idx)));}
@@ -289,7 +304,6 @@ static gamepad_status_t button_debounce(gamepad_status_t button) {
   for( int k = 0; k < BTNUM; k += 1){
 
     if( last_change[k] == 0){
-      LOG(1,"debouncing inited"); // TODO : deleting this the compilation fails. WHY ???????????????????
       // Debounce initialization
       int current = bitget( &button, k);
       last_change[k] = now;
