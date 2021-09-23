@@ -280,10 +280,6 @@ static int dpad_value(int up, int down, int left, int right) {
   }
 }
 
-// If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
-// the file, resulting to invalid ones, since user types are not defined yet
-static gamepad_status_t button_debounce(gamepad_status_t button);
-
 #define BTNUM 16
 static gamepad_status_t button_debounce(gamepad_status_t button) {
   static unsigned char last_value[BTNUM] = {0};
@@ -534,10 +530,6 @@ static void setup_fullswitch(void){
   pinMode(FULLSWITCH_FIRE_6_PIN, INPUT_PULLUP);
 }
 
-// If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
-// the file, resulting to invalid ones, since user types are not defined yet
-static gamepad_status_t read_fullswitch(void);
-
 static gamepad_status_t read_fullswitch(void) {
   gamepad_status_t gamepad = {0};
 
@@ -629,10 +621,6 @@ static void setup_atari_paddle(void){
   pinMode(ATARI_PADDLE_SECOND_ANGLE_PIN, INPUT_PULLUP);
 }
 
-// If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
-// the file, resulting to invalid ones, since user types are not defined yet
-static gamepad_status_t read_atari_paddle(void);
-
 static gamepad_status_t read_atari_paddle(void) {
   gamepad_status_t gamepad = {0};
 
@@ -719,10 +707,6 @@ static void setup_snes(void){
   digitalWrite(SNES_DATA_PIN, HIGH);
   pinMode(SNES_DATA_PIN, INPUT_PULLUP);
 }
-
-// If missing, the Arduino IDE will automatically generate protypes ON THE TOP of
-// the file, resulting to invalid ones, since user types are not defined yet
-static gamepad_status_t read_snes(void);
 
 static gamepad_status_t read_snes(void) {
   const int button_map[] = { 7,9,5,4, 0,1,2,3, 6,8,10,11, };
