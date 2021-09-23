@@ -72,22 +72,22 @@ static void bitset( void *target, int idx, int value){
 
 typedef struct {
 
-  uint8_t up:      1;
-  uint8_t down:    1;
-  uint8_t left:    1;
-  uint8_t right:   1;
-  uint8_t start:   1;
-  uint8_t select:  1;
-  uint8_t fire1:   1;
-  uint8_t fire2:   1;
-  uint8_t fire3:   1;
-  uint8_t fire4:   1;
-  uint8_t fire5:   1;
-  uint8_t fire6:   1;
-  uint8_t coin:    1;
-  uint8_t buttonD: 1;
-  uint8_t buttonE: 1;
-  uint8_t buttonF: 1;
+  uint8_t up:      1; // bit 0
+  uint8_t down:    1; // bit 1
+  uint8_t left:    1; // bit 2
+  uint8_t right:   1; // bit 3
+  uint8_t start:   1; // bit 4
+  uint8_t select:  1; // bit 5
+  uint8_t fire1:   1; // bit 6
+  uint8_t fire2:   1; // bit 7
+  uint8_t fire3:   1; // bit 8
+  uint8_t fire4:   1; // bit 9
+  uint8_t fire5:   1; // bit 10
+  uint8_t fire6:   1; // bit 11
+  uint8_t coin:    1; // bit 12
+  uint8_t buttonD: 1; // bit 13
+  uint8_t buttonE: 1; // bit 14
+  uint8_t buttonF: 1; // bit 15
 
   uint8_t	pad0 : 4;
   uint8_t	pad1 : 4;
@@ -725,7 +725,8 @@ static void setup_snes(void){
 static gamepad_status_t read_snes(void);
 
 static gamepad_status_t read_snes(void) {
-  const int button_map[] = {8,10,6,5, 0,1,2,3, 7,9,11,12, };
+  const int button_map[] = { 7,9,5,4, 0,1,2,3, 6,8,10,11, };
+
   gamepad_status_t gamepad = {0};
 
   digitalWrite(SNES_LATCH_PIN, HIGH);
