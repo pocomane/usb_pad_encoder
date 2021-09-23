@@ -15,6 +15,8 @@ The "USB pad encoder with Arduino"'s Author, 2021
 
 ***********************************************************************************/
 
+#include <Arduino.h>
+
 // Config -------------------------------------------------------------------------
 
 #define INPUT_PROTOCOL   SNES // FULLSWITCH, ATARI_PADDLE, SNES
