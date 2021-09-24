@@ -196,7 +196,9 @@ int gamepad_send(gamepad_status_t *status){ return gamepad_log( status); }
 
 #define REPORTID (0x06)
 
-static const uint8_t gamepad_hid_descriptor[] = {
+// PROGMEM = store the data in the flash/program memory instead of SRAM; this is
+// needed by the HID library.
+static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
 
   // Gamepad
   0x05, 0x01,        //  USAGE_PAGE (Generic Desktop)
