@@ -297,23 +297,21 @@ static int dpad_value(int up, int down, int left, int right) {
 
 static int button_debounce(timed_t* last, int current) {
 
-  unsigned long last_change = last->time;
-  unsigned char last_value = last->event;
   const unsigned long now = current_time_step();
 
-  if( last_change == 0){
+  if( last->time == 0){
     // Debounce initialization
-    last_change = now;
-    last_value = current;
+    last->time = now;
+    last->event = current;
 
-  } else if( now - last_change < 5000 /*us*/){
+  } else if( now - last->time < 5000 /*us*/){
     // Mask unwanted bounce
-    current = last_value;
+    current = last->event;
 
   } else {
     // Debouncing passed, keep the new value
-    if(last_value != current) last_change = now;
-    last_value = current;
+    if(last->event != current) last->time = now;
+    last->event = current;
   }
   return current;
 }
