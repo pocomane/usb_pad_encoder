@@ -83,8 +83,16 @@ static void bitset( void *target, int idx, int value){
   value ? biton(target, idx) : bitoff(target, idx);
 }
 
-// USB HID wrapper ---------------------------------------------------------------------
+static unsigned long now_us = 0;
+static void next_time_step(){ now_us = micros();}
+static unsigned long current_time_step(){ return now_us;}
 
+typedef struct{
+  unsigned long time;
+  char event;
+} timed_t;
+
+// This definition must match the content of gamepad_hid_descriptor[]
 typedef struct {
 
   uint8_t up:      1; // bit 0
@@ -158,7 +166,8 @@ static int gamepad_status_change(gamepad_status_t a, gamepad_status_t b){
   return 0;
 }
 
-static unsigned long current_time_step(void);
+// USB HID wrapper ---------------------------------------------------------------------
+
 static void gamepad_log(gamepad_status_t *status){
   LOG(1, "gamepad report state "
       "| %x%x%x%x "
@@ -196,6 +205,7 @@ void gamepad_send(gamepad_status_t *status){ gamepad_log( status); }
 
 #define REPORTID (0x06)
 
+// The content of this array must match the definition of gamepad_status_t.
 // PROGMEM = store the data in the flash/program memory instead of SRAM; this is
 // needed by the HID library.
 static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
@@ -277,10 +287,6 @@ void gamepad_send(gamepad_status_t *status){
 
 // Common input-related routines ---------------------------------------------------------------------
 
-static unsigned long now_us = 0;
-static void next_time_step(void) { now_us = micros(); }
-static unsigned long current_time_step(void)  { return now_us; }
-
 static int dpad_value(int up, int down, int left, int right) {
   if (up) {
     if (left) return 8;
@@ -297,34 +303,28 @@ static int dpad_value(int up, int down, int left, int right) {
   }
 }
 
-#define BTNUM 16
-static gamepad_status_t button_debounce(gamepad_status_t button) {
-  static unsigned char last_value[BTNUM] = {0};
-  static unsigned long last_change[BTNUM] = {0};
+static int button_debounce(timed_t* last, int current) {
+
+  unsigned long last_change = last->time;
+  unsigned char last_value = last->event;
   const unsigned long now = current_time_step();
 
-  for( int k = 0; k < BTNUM; k += 1){
+  if( last_change == 0){
+    // Debounce initialization
+    last_change = now;
+    last_value = current;
 
-    if( last_change[k] == 0){
-      // Debounce initialization
-      int current = bitget( &button, k);
-      last_change[k] = now;
-      last_value[k] = current;
+  } else if( now - last_change < 5000 /*us*/){
+    // Mask unwanted bounce
+    current = last_value;
 
-    } else if( now - last_change[k] < 5000 /*us*/){
-      // Mask unwanted bounce
-      bitset( &button, k, last_value[k]);
-
-    } else {
-      // Debouncing passed, keep the new value
-      int current = bitget( &button, k);
-      if(last_value[k] != current) last_change[k] = now;
-      last_value[k] = current;
-    }
+  } else {
+    // Debouncing passed, keep the new value
+    if(last_value != current) last_change = now;
+    last_value = current;
   }
-  return button;
+  return current;
 }
-#undef BTNUM
 
 static int16_t moving_average(int16_t* buffer, int16_t size, int16_t newval){
 
@@ -346,71 +346,69 @@ static int16_t moving_average(int16_t* buffer, int16_t size, int16_t newval){
 
 // Autofire ---------------------------------------------------------------------
 
-static int autofire_none(int index, int is_pressed, int option) {
+static int autofire_none( timed_t* last, int is_pressed, int option){
   return is_pressed;
 }
 
-#define ASSISTED_BUTTON_NUMBER 6
-static int autofire_assist(int index, int is_pressed, int option) {
-  if (index < 0 || index >= ASSISTED_BUTTON_NUMBER){
-    LOG(1, "autofire not supported for button %d", index);
-    return is_pressed;
-  }
-  
-  static unsigned long last_press[ ASSISTED_BUTTON_NUMBER ] = {0};
-  static int tap_count[ ASSISTED_BUTTON_NUMBER ] = {0};
-  static int prev_press[ ASSISTED_BUTTON_NUMBER ] = {0};
-  
+static int autofire_assist( timed_t* last, int is_pressed, int option){
+
+  unsigned long last_time = last->time;
+  int last_pressed = last->event & 0x1;
+  int tap_count = last->event >> 1;
+
   // store current status for the next iterations
-  unsigned long press_time = last_press[index];
-  int was_pressed = prev_press[index];
-  prev_press[index] = is_pressed;
+  unsigned long press_time = last_time;
+  int was_pressed = last_pressed; // TODO : clean up this
+  last_pressed = is_pressed; // TODO : clean up this
   if (is_pressed && !was_pressed) {
-    last_press[index] = current_time_step();
+    last_time = current_time_step();
   }
 
   // count the number of taps
   if (is_pressed && !was_pressed) {
     if (current_time_step() < press_time + TAP_MAX_PERIOD ) {
-      tap_count[index] += 1;
+      tap_count += 1;
     }
   }
  
   // reset tap count if too much time is elapsed
   if (!is_pressed && current_time_step() >= press_time + TAP_MAX_PERIOD ) {
-    tap_count[index] = 0;
+    tap_count = 0;
   }
   
   // do autofire 
-  if (is_pressed && (tap_count[index] >= AUTOFIRE_TAP_COUNT)) {
-    is_pressed = !(((current_time_step() - press_time) / AUTOFIRE_PERIOD ) % 2);
+  if ( is_pressed &&( tap_count >= AUTOFIRE_TAP_COUNT)){
+    is_pressed = !((( current_time_step() - press_time) / AUTOFIRE_PERIOD) % 2);
   }
  
-  LOG(is_pressed != was_pressed, "auto fire status: button/%d count/%d current/%d timing/%ld result/%d", index, tap_count[index], is_pressed, current_time_step() - press_time, is_pressed);
+  LOG( is_pressed != was_pressed, "auto fire status: button/%d count/%d current/%d timing/%ld result/%d", index, tap_count, is_pressed, current_time_step() - press_time, is_pressed);
+
+  last->time = last_time;
+  last->event = (!! last_pressed) +( tap_count << 1);
 
   return is_pressed;
 }
 
-#define TOGGLED_BUTTON_NUMBER 4
-static int autofire_toggle(int index, int is_pressed, int is_toggled) {
-  static unsigned long last_press[ TOGGLED_BUTTON_NUMBER ] = {0};
-  static int prev_toggle[ TOGGLED_BUTTON_NUMBER ] = {0};
-  static int autofire_enabled[ TOGGLED_BUTTON_NUMBER ] = {0};
+static int autofire_toggle( timed_t* last, int is_pressed, int is_toggled){
+
+  unsigned long last_time = last->time;
+  int last_toggle = last->event & 0x1;
+  int autofire_enabled = last->event & 0x2;
 
   // store current status for the next iterations
-  int was_toggled = prev_toggle[index];
-  prev_toggle[index] = is_toggled;
-  unsigned long press_time = last_press[index];
-  int autofire = autofire_enabled[index];
+  int was_toggled = last_toggle; // TODO : clean up
+  last_toggle = is_toggled; // TODO : clean up
+  unsigned long press_time = last_time; // TODO : clean up
+  int autofire = autofire_enabled; // TODO : clean up
 
   // store the press time
   if (!is_pressed) {
-    last_press[index] = current_time_step(); // + 1;
+    last_time = current_time_step(); // + 1;
   }
 
   // flip the toggle when the toggle-button is press and released while the target-button is pressed
   if (was_toggled && !is_toggled && is_pressed) {
-    autofire_enabled[index] = !autofire_enabled[index];
+    autofire_enabled = !autofire_enabled;
   }
 
   // do autofire
@@ -420,18 +418,21 @@ static int autofire_toggle(int index, int is_pressed, int is_toggled) {
 
   LOG(is_toggled != was_toggled, "auto fire status: button/%d auto/%d current/%d timing/%ld result/%d", index, autofire, is_pressed, current_time_step() - press_time, is_pressed);
 
+  last->time = last_time;
+  last->event = (!! last_toggle) +((!! autofire_enabled) << 1);
+
   return is_pressed;
 }
 
 // autofire mode selection
 //
-static int do_autofire(int index, int is_pressed, int option) {
+static int do_autofire( timed_t* last, int is_pressed, int option){
 #if AUTOFIRE_MODE == NONE
-  return autofire_none(index, is_pressed, option);
+  return autofire_none( last, is_pressed, option);
 #elif AUTOFIRE_MODE == ASSIST
-  return autofire_assist(index, is_pressed, option);
+  return autofire_assist( last, is_pressed, option);
 #elif AUTOFIRE_MODE == TOGGLE
-  return autofire_toggle(index, is_pressed, option);
+  return autofire_toggle( last, is_pressed, option);
 #else
   #error "unsupported autofire mode"
   return -1;
@@ -567,18 +568,26 @@ static gamepad_status_t read_fullswitch(void) {
 
 static int loop_fullswitch(void) {
   static gamepad_status_t old_status = {0};
+  static timed_t autofire_slot[ 6] = { 0};
+  static timed_t debounce_slot[ 16] = { 0};
 
-  // Read pad status + debounce
+  // Read pad status
   gamepad_status_t gamepad = read_fullswitch();
-  gamepad = button_debounce(gamepad);
+
+  // Debounce
+  for( int k = 0; k < sizeof( debounce_slot) / sizeof( debounce_slot[ 0]); k += 1){
+    int current = bitget( &gamepad, k);
+    int new_value = button_debounce( debounce_slot + k, current);
+    bitset( &gamepad, k, new_value);
+  }
 
   // Autofire
-  gamepad.fire1 = do_autofire(0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire2 = do_autofire(1, gamepad.fire2, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire3 = do_autofire(2, gamepad.fire3, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire4 = do_autofire(3, gamepad.fire4, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire5 = do_autofire(4, gamepad.fire5, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire6 = do_autofire(5, gamepad.fire6, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire1 = do_autofire( autofire_slot + 0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire2 = do_autofire( autofire_slot + 1, gamepad.fire2, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire3 = do_autofire( autofire_slot + 2, gamepad.fire3, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire4 = do_autofire( autofire_slot + 3, gamepad.fire4, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire5 = do_autofire( autofire_slot + 4, gamepad.fire5, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire6 = do_autofire( autofire_slot + 5, gamepad.fire6, gamepad.AUTOFIRE_SELECTOR);
 
   // Map dpad to an hat (comment to map the dpad as regular buttons)
   gamepad.pad0 = dpad_value(
@@ -652,16 +661,21 @@ static gamepad_status_t read_atari_paddle(void) {
 
 static int loop_atari_paddle(void) {
   static gamepad_status_t old_status = {0};
+  static timed_t autofire_slot[ 2] = { 0};
+  static timed_t debounce_slot[ 2] = { 0};
 
-  // Read pad status + debounce
+  // Read pad status
   gamepad_status_t gamepad = read_atari_paddle();
-  gamepad = button_debounce(gamepad);
+
+  // Debounce
+  gamepad.fire1 = button_debounce( debounce_slot + 0, gamepad.fire1);
+  gamepad.fire1 = button_debounce( debounce_slot + 1, gamepad.fire1);
 
   // Autofire
   // Last parameter is always zero since atari paddle have one fire button so the
   // TOGGLE mode can no be used for autofire
-  gamepad.fire1 = do_autofire(0, gamepad.fire1, 0);
-  gamepad.fire2 = do_autofire(1, gamepad.fire2, 0);
+  gamepad.fire1 = do_autofire( autofire_slot + 0, gamepad.fire1, 0);
+  gamepad.fire2 = do_autofire( autofire_slot + 1, gamepad.fire2, 0);
 
 #ifdef ENABLE_AXIS
   // Moving average to reduce noise on the analog readinng
@@ -747,15 +761,16 @@ static gamepad_status_t read_snes(void) {
 
 static int loop_snes(void) {
   static gamepad_status_t old_status = {0};
+  static timed_t autofire_slot[ 4] = {0};
 
   // Read pad status (no debounce needed since it is handled by the SNES HW)
   gamepad_status_t gamepad = read_snes();
 
   // Autofire
-  gamepad.fire1 = do_autofire(0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire2 = do_autofire(1, gamepad.fire2, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire3 = do_autofire(2, gamepad.fire3, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire4 = do_autofire(3, gamepad.fire4, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire1 = do_autofire( autofire_slot + 0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire2 = do_autofire( autofire_slot + 1, gamepad.fire2, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire3 = do_autofire( autofire_slot + 2, gamepad.fire3, gamepad.AUTOFIRE_SELECTOR);
+  gamepad.fire4 = do_autofire( autofire_slot + 3, gamepad.fire4, gamepad.AUTOFIRE_SELECTOR);
 
   // Map dpad to an hat (comment to map the dpad as regular buttons)
   gamepad.pad0 = dpad_value(
