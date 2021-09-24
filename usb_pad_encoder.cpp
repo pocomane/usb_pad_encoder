@@ -75,10 +75,10 @@ static void log(const char* file, int line, const char *format, ...){
 #define LOG(C, ...) do{ if( C) log(__FILE__, __LINE__, __VA_ARGS__);} while(0)
 #endif // USE_SERIAL
 
-static void bitflip(void *target, int idx){           *(unsigned long*) target ^=  (1<<(idx));}
-static int  bitget( void *target, int idx){ return !!(*(unsigned long*) target &   (1<<(idx)));}
-static void biton(  void *target, int idx){           *(unsigned long*) target |=  (1<<(idx));}
-static void bitoff( void *target, int idx){           *(unsigned long*) target &= ~(1<<(idx));}
+static void bitflip(void *target, int idx){           *(uint16_t*) target ^=  (1<<(idx));}
+static int  bitget( void *target, int idx){ return !!(*(uint16_t*) target &   (1<<(idx)));}
+static void biton(  void *target, int idx){           *(uint16_t*) target |=  (1<<(idx));}
+static void bitoff( void *target, int idx){           *(uint16_t*) target &= ~(1<<(idx));}
 static void bitset( void *target, int idx, int value){
   value ? biton(target, idx) : bitoff(target, idx);
 }
@@ -185,7 +185,7 @@ static void gamepad_log(gamepad_status_t *status){
 #ifdef SIMULATION_MODE
 
 void gamepad_init(){ LOG(1, "gamepad simulation initialized", 0); }
-int gamepad_send(gamepad_status_t *status){ return gamepad_log( status); }
+void gamepad_send(gamepad_status_t *status){ gamepad_log( status); }
 
 #else // ! SIMULATION_MODE
 

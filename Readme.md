@@ -12,7 +12,7 @@ following supported protocols:
 
 - `SNES` - To read NES or SNES pads
 - `FULLSWITCH` - To read the controllers made fully of switches, like Atari 2600,
-  Commodore, Amiga and JAMMA. This is in development, it is NOT TESTED YET !
+  Commodore, Amiga and JAMMA.
 - `ATARI_PADDLE` - To read dual paddle controller for Atari 2600. This is in
   development, it is NOT TESTED YET !
 
