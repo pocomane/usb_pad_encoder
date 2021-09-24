@@ -738,8 +738,16 @@ static void setup_snes(void){
   pinMode(SNES_DATA_PIN, INPUT_PULLUP);
 }
 
+static int read_next_button_snes(int pin, int semiwait) {
+  digitalWrite(pin, LOW);
+  delayMicroseconds(semiwait);
+  int result = !digitalRead(SNES_DATA_PIN);
+  digitalWrite(pin, HIGH);
+  delayMicroseconds(semiwait);
+  return result;
+}
+
 static gamepad_status_t read_snes(void) {
-  const int button_map[] = { 7,9,5,4, 0,1,2,3, 6,8,10,11, };
 
   gamepad_status_t gamepad = {0};
 
@@ -748,13 +756,18 @@ static gamepad_status_t read_snes(void) {
   digitalWrite(SNES_LATCH_PIN, LOW);
   delayMicroseconds(6);
 
-  for(int i = 0; i < 12; i++){
-      digitalWrite(SNES_CLOCK_PIN, LOW);
-      delayMicroseconds(6);
-      bitset( &gamepad, button_map[i], !digitalRead(SNES_DATA_PIN));
-      digitalWrite(SNES_CLOCK_PIN, HIGH);
-      delayMicroseconds(6);
-  }
+  gamepad.fire2 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // B
+  gamepad.fire4 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // Y
+  gamepad.select = read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad.start =  read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad.up =     read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad.down =   read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad.left =   read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad.right =  read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad.fire1 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // A
+  gamepad.fire3 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // X
+  gamepad.fire5 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // L
+  gamepad.fire6 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // R
 
   return gamepad;
 }
