@@ -30,6 +30,10 @@ SKETCH_NAME=$(basename "$SCRDIR")
 # Prepare directory
 #rm -fR "$SKETCH_DIR"/build
 mkdir -p "$SKETCH_DIR"/build
+cat > "$SKETCH_DIR"/"$SKETCH_NAME".ino <<EOF
+// This .ino file is just a boilerplate.
+// All the code is in the .cpp file.
+EOF
 
 # Compile
 arduino-cli compile $BUILDPROP -b arduino:avr:micro "$SKETCH_DIR" --build-path="$SKETCH_DIR"/build
@@ -47,4 +51,5 @@ arduino-cli upload -p /dev/ttyACM0 -b arduino:avr:micro "$SKETCH_DIR" --input-di
 #       you can start minicom, stop it with ctrl-a (that stops the serial messages)
 #       and then start the flashing from another console.
 # minicom -o -b 9600 -D /dev/ttyACM0
+
 
