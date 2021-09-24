@@ -31,9 +31,15 @@ button is down it will enable and disable the auto-fire for that button.
 
 # Compile and flash
 
-It should be easy to compile and flash the sketch using the Arduino IDE. For
-some IDE version you could need to install the the joystick library:
-https://github.com/MHeironimus/ArduinoJoystickLibrary
+It should be easy to compile and flash the sketch using the Arduino IDE or
+`arduino-cli`, however the `build.sh` script is provided. It uses `arduino-cli`
+(that must be installed in the system) to install the dependencies, to compile
+the code, and to upload it to an arduino board. The script should make simple
+also to modify some setting, like the name with which the Arduino board will
+present itself.
+
+Note: if you want use the Arduino IDE to compile the code, some version may
+need the joystick library: https://github.com/MHeironimus/ArduinoJoystickLibrary .
 
 # Build an adaptor
 
