@@ -75,14 +75,6 @@ static void log(const char* file, int line, const char *format, ...){
 #define LOG(C, ...) do{ if( C) log(__FILE__, __LINE__, __VA_ARGS__);} while(0)
 #endif // USE_SERIAL
 
-static void bitflip(void *target, int idx){           *(uint16_t*) target ^=  (1<<(idx));}
-static int  bitget( void *target, int idx){ return !!(*(uint16_t*) target &   (1<<(idx)));}
-static void biton(  void *target, int idx){           *(uint16_t*) target |=  (1<<(idx));}
-static void bitoff( void *target, int idx){           *(uint16_t*) target &= ~(1<<(idx));}
-static void bitset( void *target, int idx, int value){
-  value ? biton(target, idx) : bitoff(target, idx);
-}
-
 static unsigned long now_us = 0;
 static void next_time_step(){ now_us = micros();}
 static unsigned long current_time_step(){ return now_us;}
@@ -95,22 +87,22 @@ typedef struct{
 // This definition must match the content of gamepad_hid_descriptor[]
 typedef struct {
 
-  uint8_t up:      1; // bit 0
-  uint8_t down:    1; // bit 1
-  uint8_t left:    1; // bit 2
-  uint8_t right:   1; // bit 3
-  uint8_t start:   1; // bit 4
-  uint8_t select:  1; // bit 5
-  uint8_t fire1:   1; // bit 6
-  uint8_t fire2:   1; // bit 7
-  uint8_t fire3:   1; // bit 8
-  uint8_t fire4:   1; // bit 9
-  uint8_t fire5:   1; // bit 10
-  uint8_t fire6:   1; // bit 11
-  uint8_t coin:    1; // bit 12
-  uint8_t buttonD: 1; // bit 13
-  uint8_t buttonE: 1; // bit 14
-  uint8_t buttonF: 1; // bit 15
+  uint8_t up:      1;
+  uint8_t down:    1;
+  uint8_t left:    1;
+  uint8_t right:   1;
+  uint8_t start:   1;
+  uint8_t select:  1;
+  uint8_t fire1:   1;
+  uint8_t fire2:   1;
+  uint8_t fire3:   1;
+  uint8_t fire4:   1;
+  uint8_t fire5:   1;
+  uint8_t fire6:   1;
+  uint8_t coin:    1;
+  uint8_t buttonD: 1;
+  uint8_t buttonE: 1;
+  uint8_t buttonF: 1;
 
   uint8_t	pad0 : 4;
   uint8_t	pad1 : 4;
@@ -569,17 +561,24 @@ static gamepad_status_t read_fullswitch(void) {
 static int loop_fullswitch(void) {
   static gamepad_status_t old_status = {0};
   static timed_t autofire_slot[ 6] = { 0};
-  static timed_t debounce_slot[ 16] = { 0};
+  static timed_t debounce_slot[ 12] = { 0};
 
   // Read pad status
   gamepad_status_t gamepad = read_fullswitch();
 
   // Debounce
-  for( int k = 0; k < sizeof( debounce_slot) / sizeof( debounce_slot[ 0]); k += 1){
-    int current = bitget( &gamepad, k);
-    int new_value = button_debounce( debounce_slot + k, current);
-    bitset( &gamepad, k, new_value);
-  }
+  gamepad.up     =  button_debounce( debounce_slot + 0,  gamepad.up);
+  gamepad.down   =  button_debounce( debounce_slot + 1,  gamepad.down);
+  gamepad.left   =  button_debounce( debounce_slot + 2,  gamepad.left);
+  gamepad.right  =  button_debounce( debounce_slot + 3,  gamepad.right);
+  gamepad.select =  button_debounce( debounce_slot + 4,  gamepad.select);
+  gamepad.fire1  =  button_debounce( debounce_slot + 5,  gamepad.fire1);
+  gamepad.fire2  =  button_debounce( debounce_slot + 6,  gamepad.fire2);
+  gamepad.fire3  =  button_debounce( debounce_slot + 7,  gamepad.fire3);
+  gamepad.fire4  =  button_debounce( debounce_slot + 8,  gamepad.fire4);
+  gamepad.fire5  =  button_debounce( debounce_slot + 9,  gamepad.fire5);
+  gamepad.fire6  =  button_debounce( debounce_slot + 10, gamepad.fire6);
+  gamepad.coin   =  button_debounce( debounce_slot + 11, gamepad.coin);
 
   // Autofire
   gamepad.fire1 = do_autofire( autofire_slot + 0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
