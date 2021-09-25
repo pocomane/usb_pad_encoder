@@ -595,13 +595,9 @@ static gamepad_status_t read_fullswitch(void) {
   return gamepad;
 }
 
-static int loop_fullswitch(void) {
-  static gamepad_status_t old_status = {0};
+static gamepad_status_t process_fullswitch( gamepad_status_t gamepad) {
   static timed_t autofire_slot[ 6] = { 0};
   static timed_t debounce_slot[ 12] = { 0};
-
-  // Read pad status
-  gamepad_status_t gamepad = read_fullswitch();
 
   // Debounce
   gamepad.up     =  button_debounce( debounce_slot + 0,  gamepad.up);
@@ -627,11 +623,7 @@ static int loop_fullswitch(void) {
 
   gamepad_button_to_dpad( &gamepad);
 
-  // Send USB event as needed
-  if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
-  old_status = gamepad;
-
-  return 0;
+  return gamepad;
 }
 #endif // FULLSWITCH
 
@@ -685,13 +677,9 @@ static gamepad_status_t read_atari_paddle(void) {
   return gamepad;
 }
 
-static int loop_atari_paddle(void) {
-  static gamepad_status_t old_status = {0};
+static gamepad_status_t process_atari_paddle( gamepad_status_t gamepad) {
   static timed_t autofire_slot[ 2] = { 0};
   static timed_t debounce_slot[ 2] = { 0};
-
-  // Read pad status
-  gamepad_status_t gamepad = read_atari_paddle();
 
   // Debounce
   gamepad.fire1 = button_debounce( debounce_slot + 0, gamepad.fire1);
@@ -713,11 +701,7 @@ static int loop_atari_paddle(void) {
   gamepad.axisX *= 1;
   gamepad.axisY *= 1;
 
-  // Send USB event as needed
-  if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
-  old_status = gamepad;
-
-  return 0;
+  return gamepad;
 }
 #endif // ATARI_PADDLE
 
@@ -798,12 +782,8 @@ static gamepad_status_t read_snes(void) {
   return gamepad;
 }
 
-static int loop_snes(void) {
-  static gamepad_status_t old_status = {0};
+static gamepad_status_t process_snes( gamepad_status_t gamepad) {
   static timed_t autofire_slot[ 4] = {0};
-
-  // Read pad status (no debounce needed since it is handled by the SNES HW)
-  gamepad_status_t gamepad = read_snes();
 
   // Autofire
   gamepad.fire1 = do_autofire( autofire_slot + 0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
@@ -813,11 +793,7 @@ static int loop_snes(void) {
 
   gamepad_button_to_dpad( &gamepad);
 
-  // Send USB event as needed
-  if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
-  old_status = gamepad;
-
-  return 0;
+  return gamepad;
 }
 #endif // SNES
 
@@ -889,13 +865,23 @@ void setup() {
 void loop(){
   loop_first();
 
+  static gamepad_status_t old_status = {0};
+  gamepad_status_t gamepad;
+
 #if INPUT_PROTOCOL == FULLSWITCH
-  loop_fullswitch();
+  gamepad = read_fullswitch();
+  gamepad = process_fullswitch( gamepad);
 #elif INPUT_PROTOCOL == ATARI_PADDLE
-  loop_atari_paddle();
+  gamepad = read_atari_paddle();
+  gamepad = process_atari_paddle( gamepad);
 #elif INPUT_PROTOCOL == SNES
-  loop_snes();
+  gamepad = read_snes();
+  gamepad = process_snes( gamepad);
 #endif
+
+  if (gamepad_status_change(old_status, gamepad))
+    gamepad_send(&gamepad);
+  old_status = gamepad;
 
   loop_last();
 }
