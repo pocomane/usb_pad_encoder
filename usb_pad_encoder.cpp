@@ -312,20 +312,24 @@ void gamepad_send(gamepad_status_t *status){
 
 // Common input-related routines ---------------------------------------------------------------------
 
-static int dpad_value(int up, int down, int left, int right) {
-  if (up) {
-    if (left) return 8;
-    else if (right) return 2;
-    else return 1;
-  } else if (down) {
-    if (left) return 6;
-    else if (right) return 4;
-    else return 5;
-  } else {
-    if (left) return 7;
-    else if (right) return 3;
-    else return 0;
+static void gamepad_button_to_dpad( gamepad_status_t* gamepad){
+  if( gamepad->up){
+    if(      gamepad->left)  gamepad->direction = 8;
+    else if( gamepad->right) gamepad->direction = 2;
+    else                     gamepad->direction = 1;
+  } else if( gamepad->down){
+    if(      gamepad->left)  gamepad->direction = 6;
+    else if( gamepad->right) gamepad->direction = 4;
+    else                     gamepad->direction = 5;
+  } else{
+    if(      gamepad->left)  gamepad->direction = 7;
+    else if( gamepad->right) gamepad->direction = 3;
+    else                     gamepad->direction = 0;
   }
+  gamepad->up    = 0;
+  gamepad->down  = 0;
+  gamepad->left  = 0;
+  gamepad->right = 0;
 }
 
 static int button_debounce(timed_t* last, int current) {
@@ -621,17 +625,7 @@ static int loop_fullswitch(void) {
   gamepad.fire5 = do_autofire( autofire_slot + 4, gamepad.fire5, gamepad.AUTOFIRE_SELECTOR);
   gamepad.fire6 = do_autofire( autofire_slot + 5, gamepad.fire6, gamepad.AUTOFIRE_SELECTOR);
 
-  // Map dpad to an hat (comment to map the dpad as regular buttons)
-  gamepad.direction = dpad_value(
-    gamepad.up,
-    gamepad.down,
-    gamepad.left,
-    gamepad.right
-  );
-  gamepad.up = 0;
-  gamepad.down = 0;
-  gamepad.left = 0;
-  gamepad.right = 0;
+  gamepad_button_to_dpad( &gamepad);
 
   // Send USB event as needed
   if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
@@ -817,17 +811,7 @@ static int loop_snes(void) {
   gamepad.fire3 = do_autofire( autofire_slot + 2, gamepad.fire3, gamepad.AUTOFIRE_SELECTOR);
   gamepad.fire4 = do_autofire( autofire_slot + 3, gamepad.fire4, gamepad.AUTOFIRE_SELECTOR);
 
-  // Map dpad to an hat (comment to map the dpad as regular buttons)
-  gamepad.direction = dpad_value(
-    gamepad.up,
-    gamepad.down,
-    gamepad.left,
-    gamepad.right
-  );
-  gamepad.up = 0;
-  gamepad.down = 0;
-  gamepad.left = 0;
-  gamepad.right = 0;
+  gamepad_button_to_dpad( &gamepad);
 
   // Send USB event as needed
   if (gamepad_status_change(old_status, gamepad)) gamepad_send(&gamepad);
