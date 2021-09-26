@@ -156,14 +156,11 @@ typedef struct {
   uint8_t down:    1;
   uint8_t left:    1;
   uint8_t right:   1;
-  uint8_t unused0: 1;
-  uint8_t unused1: 1;
-  uint8_t unused2: 1;
-  uint8_t unused3: 1;
+  uint8_t unused0: 4;
 
 #ifdef USE_HAT_FOR_DPAD
   uint8_t	direction: 4;
-  uint8_t	unused4: 4;
+  uint8_t	unused1: 4;
 #endif
 
 } gamepad_status_t;
@@ -258,10 +255,10 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
     // Hat Switches
     0x05, 0x01,             //    USAGE_PAGE (Generic Desktop)
     0x09, 0x39,             //    USAGE (Hat switch)
-    0x09, 0x39,             //    USAGE (Hat switch)
+    // 0x09, 0x39,             //    USAGE (Hat switch) // uncomment for a second hat
       0x15, 0x01,           //      LOGICAL_MINIMUM (1)
       0x25, 0x08,           //      LOGICAL_MAXIMUM (8)
-    0x95, 0x02,             //    REPORT_COUNT (2)
+    0x95, 0x01,             //    REPORT_COUNT (1) // set to 2 for a second hat
     0x75, 0x04,             //    REPORT_SIZE (4)
     0x81, 0x02,             //    INPUT (Data,Var,Abs)
 #endif
@@ -597,7 +594,7 @@ static void process_fullswitch( gamepad_status_t* gamepad) {
   gamepad->fire4  =  button_debounce( debounce_slot + 8,  gamepad->fire4);
   gamepad->fire5  =  button_debounce( debounce_slot + 9,  gamepad->fire5);
   gamepad->fire6  =  button_debounce( debounce_slot + 10, gamepad->fire6);
-  gamepad->start   =  button_debounce( debounce_slot + 11, gamepad->start);
+  gamepad->start  =  button_debounce( debounce_slot + 11, gamepad->start);
 
   // Autofire
   gamepad->fire1 = do_autofire( autofire_slot + 0, gamepad->fire1, gamepad->AUTOFIRE_SELECTOR);
