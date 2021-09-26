@@ -225,7 +225,7 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
 #ifdef HID_AXIS_ENABLE
     // 16bit Axis
     0x05, 0x01,             //    USAGE_PAGE (Generic Desktop)
-    0xa1, 0x00,             //    COLLECTION (Physical)
+    // 0xa1, 0x00,             //    COLLECTION (Physical)
     0x09, 0x30,             //    USAGE (X)
     0x09, 0x31,             //    USAGE (Y)
     0x09, 0x33,             //    USAGE (Rx)
