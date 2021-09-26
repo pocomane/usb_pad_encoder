@@ -136,43 +136,6 @@ typedef struct {
 
 } gamepad_status_t;
 
-static int gamepad_status_change(gamepad_status_t a, gamepad_status_t b){
-
-  if( a.fire1 != b.fire1) return 1;
-  if( a.fire2 != b.fire2) return 1;
-  if( a.fire3 != b.fire3) return 1;
-  if( a.fire4 != b.fire4) return 1;
-
-#if HID_BUTTONS > 8
-  if( a.fire5 != b.fire5) return 1;
-  if( a.fire6 != b.fire6) return 1;
-  if( a.start != b.start) return 1;
-  if( a.select != b.select) return 1;
-  if( a.coin != b.coin) return 1;
-#endif
-
-  if( a.up != b.up) return 1;
-  if( a.down != b.down) return 1;
-  if( a.left != b.left) return 1;
-  if( a.right != b.right) return 1;
-
-#if HID_HAT_SWITCHES > 0
-  if(a.direction != b.direction) return 1;
-#endif
-
-#if HID_AXIS > 0
-  int16_t dx = a.axisX - b.axisX;
-  int16_t dy = a.axisY - b.axisY;
-  dx = dx < 0 ? -dx : dx;
-  dy = dy < 0 ? -dy : dy;
-  if(dx > 1) return 1;
-  if(dy > 1) return 1;
-#endif
-  return 0;
-}
-
-// USB HID wrapper ---------------------------------------------------------------------
-
 static void gamepad_log(gamepad_status_t *status){
   LOG(1, "gamepad report state "
 
@@ -214,6 +177,8 @@ static void gamepad_log(gamepad_status_t *status){
       micros() - current_time_step(), current_time_step()
    );
 }
+
+// USB HID wrapper ---------------------------------------------------------------------
 
 #ifdef SIMULATION_MODE
 
@@ -576,8 +541,7 @@ static void setup_fullswitch(void){
   pinMode(FULLSWITCH_FIRE_6_PIN, INPUT_PULLUP);
 }
 
-static gamepad_status_t read_fullswitch(void) {
-  gamepad_status_t gamepad = {0};
+static void read_fullswitch( gamepad_status_t* gamepad) {
 
   gamepad.coin =  !digitalRead(FULLSWITCH_COIN_PIN);
   gamepad.start = !digitalRead(FULLSWITCH_START_PIN);
@@ -591,39 +555,35 @@ static gamepad_status_t read_fullswitch(void) {
   gamepad.fire4 = !digitalRead(FULLSWITCH_FIRE_4_PIN);
   gamepad.fire5 = !digitalRead(FULLSWITCH_FIRE_5_PIN);
   gamepad.fire6 = !digitalRead(FULLSWITCH_FIRE_6_PIN);
-
-  return gamepad;
 }
 
-static gamepad_status_t process_fullswitch( gamepad_status_t gamepad) {
+static void process_fullswitch( gamepad_status_t* gamepad) {
   static timed_t autofire_slot[ 6] = { 0};
   static timed_t debounce_slot[ 12] = { 0};
 
   // Debounce
-  gamepad.up     =  button_debounce( debounce_slot + 0,  gamepad.up);
-  gamepad.down   =  button_debounce( debounce_slot + 1,  gamepad.down);
-  gamepad.left   =  button_debounce( debounce_slot + 2,  gamepad.left);
-  gamepad.right  =  button_debounce( debounce_slot + 3,  gamepad.right);
-  gamepad.select =  button_debounce( debounce_slot + 4,  gamepad.select);
-  gamepad.fire1  =  button_debounce( debounce_slot + 5,  gamepad.fire1);
-  gamepad.fire2  =  button_debounce( debounce_slot + 6,  gamepad.fire2);
-  gamepad.fire3  =  button_debounce( debounce_slot + 7,  gamepad.fire3);
-  gamepad.fire4  =  button_debounce( debounce_slot + 8,  gamepad.fire4);
-  gamepad.fire5  =  button_debounce( debounce_slot + 9,  gamepad.fire5);
-  gamepad.fire6  =  button_debounce( debounce_slot + 10, gamepad.fire6);
-  gamepad.coin   =  button_debounce( debounce_slot + 11, gamepad.coin);
+  gamepad->up     =  button_debounce( debounce_slot + 0,  gamepad->up);
+  gamepad->down   =  button_debounce( debounce_slot + 1,  gamepad->down);
+  gamepad->left   =  button_debounce( debounce_slot + 2,  gamepad->left);
+  gamepad->right  =  button_debounce( debounce_slot + 3,  gamepad->right);
+  gamepad->select =  button_debounce( debounce_slot + 4,  gamepad->select);
+  gamepad->fire1  =  button_debounce( debounce_slot + 5,  gamepad->fire1);
+  gamepad->fire2  =  button_debounce( debounce_slot + 6,  gamepad->fire2);
+  gamepad->fire3  =  button_debounce( debounce_slot + 7,  gamepad->fire3);
+  gamepad->fire4  =  button_debounce( debounce_slot + 8,  gamepad->fire4);
+  gamepad->fire5  =  button_debounce( debounce_slot + 9,  gamepad->fire5);
+  gamepad->fire6  =  button_debounce( debounce_slot + 10, gamepad->fire6);
+  gamepad->coin   =  button_debounce( debounce_slot + 11, gamepad->coin);
 
   // Autofire
-  gamepad.fire1 = do_autofire( autofire_slot + 0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire2 = do_autofire( autofire_slot + 1, gamepad.fire2, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire3 = do_autofire( autofire_slot + 2, gamepad.fire3, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire4 = do_autofire( autofire_slot + 3, gamepad.fire4, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire5 = do_autofire( autofire_slot + 4, gamepad.fire5, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire6 = do_autofire( autofire_slot + 5, gamepad.fire6, gamepad.AUTOFIRE_SELECTOR);
+  gamepad->fire1 = do_autofire( autofire_slot + 0, gamepad->fire1, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire2 = do_autofire( autofire_slot + 1, gamepad->fire2, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire3 = do_autofire( autofire_slot + 2, gamepad->fire3, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire4 = do_autofire( autofire_slot + 3, gamepad->fire4, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire5 = do_autofire( autofire_slot + 4, gamepad->fire5, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire6 = do_autofire( autofire_slot + 5, gamepad->fire6, gamepad->AUTOFIRE_SELECTOR);
 
-  gamepad_button_to_dpad( &gamepad);
-
-  return gamepad;
+  gamepad_button_to_dpad( gamepad);
 }
 #endif // FULLSWITCH
 
@@ -666,42 +626,37 @@ static void setup_atari_paddle(void){
   pinMode(ATARI_PADDLE_SECOND_ANGLE_PIN, INPUT_PULLUP);
 }
 
-static gamepad_status_t read_atari_paddle(void) {
-  gamepad_status_t gamepad = {0};
+static void read_atari_paddle( gamepad_status_t* gamepad) {
 
-  gamepad.fire1 = digitalRead(ATARI_PADDLE_FIRST_FIRE_PIN);
-  gamepad.fire2 = digitalRead(ATARI_PADDLE_SECOND_FIRE_PIN);
-  gamepad.axisX = analogRead(ATARI_PADDLE_FIRST_ANGLE_PIN);
-  gamepad.axisY = analogRead(ATARI_PADDLE_SECOND_ANGLE_PIN);
-
-  return gamepad;
+  gamepad->fire1 = digitalRead( ATARI_PADDLE_FIRST_FIRE_PIN);
+  gamepad->fire2 = digitalRead( ATARI_PADDLE_SECOND_FIRE_PIN);
+  gamepad->axisX = analogRead( ATARI_PADDLE_FIRST_ANGLE_PIN);
+  gamepad->axisY = analogRead( ATARI_PADDLE_SECOND_ANGLE_PIN);
 }
 
-static gamepad_status_t process_atari_paddle( gamepad_status_t gamepad) {
+static void process_atari_paddle( gamepad_status_t( gamepad) {
   static timed_t autofire_slot[ 2] = { 0};
   static timed_t debounce_slot[ 2] = { 0};
 
   // Debounce
-  gamepad.fire1 = button_debounce( debounce_slot + 0, gamepad.fire1);
-  gamepad.fire1 = button_debounce( debounce_slot + 1, gamepad.fire1);
+  gamepad->fire1 = button_debounce( debounce_slot + 0, gamepad->fire1);
+  gamepad->fire1 = button_debounce( debounce_slot + 1, gamepad->fire1);
 
   // Autofire
   // Last parameter is always zero since atari paddle have one fire button so the
   // TOGGLE mode can no be used for autofire
-  gamepad.fire1 = do_autofire( autofire_slot + 0, gamepad.fire1, 0);
-  gamepad.fire2 = do_autofire( autofire_slot + 1, gamepad.fire2, 0);
+  gamepad->fire1 = do_autofire( autofire_slot + 0, gamepad->fire1, 0);
+  gamepad->fire2 = do_autofire( autofire_slot + 1, gamepad->fire2, 0);
 
   // Moving average to reduce noise on the analog readinng
   static int16_t first_axis_history[10] = {0};
   static int16_t second_axis_history[10] = {0};
-  gamepad.axisX = moving_average(first_axis_history, 10, gamepad.axisX);
-  gamepad.axisY = moving_average(second_axis_history, 10, gamepad.axisY);
+  gamepad->axisX = moving_average(first_axis_history,  10, gamepad->axisX);
+  gamepad->axisY = moving_average(second_axis_history, 10, gamepad->axisY);
 
   // Axis calibration
-  gamepad.axisX *= 1;
-  gamepad.axisY *= 1;
-
-  return gamepad;
+  gamepad->axisX *= 1;
+  gamepad->axisY *= 1;
 }
 #endif // ATARI_PADDLE
 
@@ -757,43 +712,37 @@ static int read_next_button_snes(int pin, int semiwait) {
   return result;
 }
 
-static gamepad_status_t read_snes(void) {
-
-  gamepad_status_t gamepad = {0};
+static void read_snes( gamepad_status_t* gamepad) {
 
   digitalWrite(SNES_LATCH_PIN, HIGH);
   delayMicroseconds(12);
   digitalWrite(SNES_LATCH_PIN, LOW);
   delayMicroseconds(6);
 
-  gamepad.fire2 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // B
-  gamepad.fire4 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // Y
-  gamepad.select = read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad.start =  read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad.up =     read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad.down =   read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad.left =   read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad.right =  read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad.fire1 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // A
-  gamepad.fire3 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // X
-  gamepad.fire5 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // L
-  gamepad.fire6 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // R
-
-  return gamepad;
+  gamepad->fire2 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // B
+  gamepad->fire4 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // Y
+  gamepad->select = read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->start =  read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->up =     read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->down =   read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->left =   read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->right =  read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->fire1 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // A
+  gamepad->fire3 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // X
+  gamepad->fire5 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // L
+  gamepad->fire6 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // R
 }
 
-static gamepad_status_t process_snes( gamepad_status_t gamepad) {
+static void process_snes( gamepad_status_t* gamepad) {
   static timed_t autofire_slot[ 4] = {0};
 
   // Autofire
-  gamepad.fire1 = do_autofire( autofire_slot + 0, gamepad.fire1, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire2 = do_autofire( autofire_slot + 1, gamepad.fire2, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire3 = do_autofire( autofire_slot + 2, gamepad.fire3, gamepad.AUTOFIRE_SELECTOR);
-  gamepad.fire4 = do_autofire( autofire_slot + 3, gamepad.fire4, gamepad.AUTOFIRE_SELECTOR);
+  gamepad->fire1 = do_autofire( autofire_slot + 0, gamepad->fire1, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire2 = do_autofire( autofire_slot + 1, gamepad->fire2, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire3 = do_autofire( autofire_slot + 2, gamepad->fire3, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire4 = do_autofire( autofire_slot + 3, gamepad->fire4, gamepad->AUTOFIRE_SELECTOR);
 
-  gamepad_button_to_dpad( &gamepad);
-
-  return gamepad;
+  gamepad_button_to_dpad( gamepad);
 }
 #endif // SNES
 
@@ -863,23 +812,25 @@ void setup() {
 }
 
 void loop(){
+  static gamepad_status_t old_status = {0};
+
   loop_first();
 
-  static gamepad_status_t old_status = {0};
   gamepad_status_t gamepad;
+  memset( &gamepad, sizeof( gamepad), 0);
 
 #if INPUT_PROTOCOL == FULLSWITCH
-  gamepad = read_fullswitch();
-  gamepad = process_fullswitch( gamepad);
+  read_fullswitch( &gamepad);
+  process_fullswitch( &gamepad);
 #elif INPUT_PROTOCOL == ATARI_PADDLE
-  gamepad = read_atari_paddle();
-  gamepad = process_atari_paddle( gamepad);
+  read_atari_paddle( &gamepad);
+  process_atari_paddle( &gamepad);
 #elif INPUT_PROTOCOL == SNES
-  gamepad = read_snes();
-  gamepad = process_snes( gamepad);
+  read_snes( &gamepad);
+  process_snes( &gamepad);
 #endif
 
-  if (gamepad_status_change(old_status, gamepad))
+  if (memcmp( &old_status, &gamepad, sizeof( gamepad)))
     gamepad_send(&gamepad);
   old_status = gamepad;
 
