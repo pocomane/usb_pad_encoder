@@ -52,52 +52,64 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define TOGGLE 3
 
 //
-// These must match the field of gamepad_status_t than want to be reported, i.e.
+// These macros align the field of gamepad_status_t with the ones reported
+// in the gamepad_hid_descriptor, i.e.
 //
 //  used in: F  FH A  S  SH
 //  ------------------------
-//  fire1  : x  x  x  x  x
-//  fire2  : x  x  x  x  x
-//  fire3  : x  x  .  x  x
-//  fire4  : x  x  .  x  x
-//  fire5  : x  x  .  x  x
-//  fire6  : x  x  .  x  x
-//  select : x  x  .  x  x
-//  start  : x  x  .  x  x
+//  unused |  '  '  '  '  '
+//  unused |  '  '  '  '  '
+//  up     |  C  '  '  C  '
+//  down   |  C  '  '  C  '
+//  left   |  C  '  '  C  '
+//  right  |  C  '  '  C  '
+//  select |  C  C  '  C  C
+//  start  |  C  C  '  C  C
 //  ------------------------
-//  up     : x  .  .  x  .
-//  down   : x  .  .  x  .
-//  left   : x  .  .  x  .
-//  right  : x  .  .  x  .
-//  EMPTYx4: .  .  .  .  .
+//  fire1  |  C  C  C  C  C
+//  fire2  |  C  C  C  C  C
+//  fire3  |  C  C  ,  C  C
+//  fire4  |  C  C  ,  C  C
+//  fire5  |  C  C  ,  C  C
+//  fire6  |  C  C  ,  C  C
+//  fire7  |  C  C  ,  ,  ,
+//  fire8  |  C  C  ,  ,  ,
+//  ------------------------
+//  F= fullswitch   xH= x with hat   A= atari paddle   S= SNES
+//  C= button count   '= offset   ,= padding
 //
 #if INPUT_PROTOCOL == FULLSWITCH && defined( USE_HAT_FOR_DPAD)
-#define HID_BUTTONS 8
-#define HID_BUTTON_MASKS 8
+#define HID_BUTTON_OFFSET   6
+#define HID_BUTTONS        10
+#define HID_BUTTON_PADDING  0
 #endif
 //
 #if INPUT_PROTOCOL == FULLSWITCH && !defined( USE_HAT_FOR_DPAD)
-#define HID_BUTTONS 12
-#define HID_BUTTON_MASKS 4
+#define HID_BUTTON_OFFSET   2
+#define HID_BUTTONS        14
+#define HID_BUTTON_PADDING  0
 #endif
 //
 #if INPUT_PROTOCOL == ATARI_PADDLE
 #define HID_AXIS_ENABLE
-#define HID_BUTTONS 2
-#define HID_BUTTON_MASKS 14
+#define HID_BUTTON_OFFSET  8
+#define HID_BUTTONS        2
+#define HID_BUTTON_PADDING 6
 #ifdef USE_HAT_FOR_DPAD
 #undef USE_HAT_FOR_DPAD
 #endif
 #endif
 //
 #if INPUT_PROTOCOL == SNES && defined( USE_HAT_FOR_DPAD)
-#define HID_BUTTONS 8
-#define HID_BUTTON_MASKS 8
+#define HID_BUTTON_OFFSET  6
+#define HID_BUTTONS        8
+#define HID_BUTTON_PADDING 2
 #endif
 //
 #if INPUT_PROTOCOL == SNES && !defined( USE_HAT_FOR_DPAD)
-#define HID_BUTTONS 12
-#define HID_BUTTON_MASKS 4
+#define HID_BUTTON_OFFSET   2
+#define HID_BUTTONS        12
+#define HID_BUTTON_PADDING  2
 #endif
 //
 
@@ -143,20 +155,22 @@ typedef struct {
   int16_t	unusedB;
 #endif
 
+  uint8_t unused0: 2;
+  uint8_t up:      1;
+  uint8_t down:    1;
+  uint8_t left:    1;
+  uint8_t right:   1;
+  uint8_t select:  1;
+  uint8_t start:   1;
+
   uint8_t fire1:   1;
   uint8_t fire2:   1;
   uint8_t fire3:   1;
   uint8_t fire4:   1;
   uint8_t fire5:   1;
   uint8_t fire6:   1;
-  uint8_t select:  1;
-  uint8_t start:   1;
-
-  uint8_t up:      1;
-  uint8_t down:    1;
-  uint8_t left:    1;
-  uint8_t right:   1;
-  uint8_t unused0: 4;
+  uint8_t fire7:   1;
+  uint8_t fire8:   1;
 
 #ifdef USE_HAT_FOR_DPAD
   uint8_t	direction: 4;
@@ -170,6 +184,7 @@ static void gamepad_log(gamepad_status_t *status){
 
       "| %x%x%x%x "
       "| %x%x%x%x "
+      "| %x%x "
       "| %x%x%x%x "
 #ifdef USE_HAT_FOR_DPAD
       "# %x "
@@ -180,7 +195,8 @@ static void gamepad_log(gamepad_status_t *status){
       ": %lu %lu",
 
       status->fire1, status->fire2, status->fire3, status->fire4,
-      status->fire5, status->fire6, status->start, status->select,
+      status->fire5, status->fire6, status->fire7, status->fire8,
+      status->start, status->select,
       status->up, status->down, status->left, status->right,
 #ifdef USE_HAT_FOR_DPAD
       status->direction,
@@ -234,7 +250,14 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
     0x81, 0x02,             //    INPUT (Data,Var,Abs)
 #endif
 
-    // Buttons
+#if HID_BUTTON_OFFSET > 0
+    // Mask leading bits
+    0x75, 0x01,              //    REPORT_SIZE (1)
+    0x95, HID_BUTTON_OFFSET, //    REPORT_COUNT (N = HID_BUTTON_OFFSET)
+    0x81, 0x03,              //    INPUT (Cnst,Var,Abs)
+#endif
+
+    // Active buttons
     0x05, 0x09,             //    USAGE_PAGE (Button)
       0x19, 0x01,           //      USAGE_MINIMUM (Button 1)
       0x29, HID_BUTTONS,    //      USAGE_MAXIMUM (Buttons N = HID_BUTTONS)
@@ -244,11 +267,11 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
     0x95, HID_BUTTONS,      //    REPORT_COUNT (N = HID_BUTTONS)
     0x81, 0x02,             //    INPUT (Data,Var,Abs)
 
-#if HID_BUTTON_MASKS > 0
-    // Padding
-    0x75, 0x01,             //    REPORT_SIZE (1)
-    0x95, HID_BUTTON_MASKS, //    REPORT_COUNT (N = HID_BUTTON_MASKS)
-    0x81, 0x03,             //    INPUT (Cnst,Var,Abs)
+#if HID_BUTTON_PADDING > 0
+    // Mask trailing bits
+    0x75, 0x01,               //    REPORT_SIZE (1)
+    0x95, HID_BUTTON_PADDING, //    REPORT_COUNT (N = HID_BUTTON_PADDING)
+    0x81, 0x03,               //    INPUT (Cnst,Var,Abs)
 #endif
 
 #ifdef USE_HAT_FOR_DPAD
@@ -545,6 +568,8 @@ static int do_autofire( timed_t* last, int is_pressed, int option){
 #define FULLSWITCH_FIRE_4_PIN  16
 #define FULLSWITCH_FIRE_5_PIN  14
 #define FULLSWITCH_FIRE_6_PIN  15
+#define FULLSWITCH_FIRE_7_PIN  20
+#define FULLSWITCH_FIRE_8_PIN  21
 
 static void setup_fullswitch(void){
 
@@ -560,6 +585,8 @@ static void setup_fullswitch(void){
   pinMode(FULLSWITCH_FIRE_4_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_FIRE_5_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_FIRE_6_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_FIRE_7_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_FIRE_8_PIN, INPUT_PULLUP);
 }
 
 static void read_fullswitch( gamepad_status_t* gamepad) {
@@ -576,11 +603,13 @@ static void read_fullswitch( gamepad_status_t* gamepad) {
   gamepad->fire4 = !digitalRead(FULLSWITCH_FIRE_4_PIN);
   gamepad->fire5 = !digitalRead(FULLSWITCH_FIRE_5_PIN);
   gamepad->fire6 = !digitalRead(FULLSWITCH_FIRE_6_PIN);
+  gamepad->fire7 = !digitalRead(FULLSWITCH_FIRE_8_PIN);
+  gamepad->fire8 = !digitalRead(FULLSWITCH_FIRE_7_PIN);
 }
 
 static void process_fullswitch( gamepad_status_t* gamepad) {
-  static timed_t autofire_slot[ 6] = { 0};
-  static timed_t debounce_slot[ 12] = { 0};
+  static timed_t autofire_slot[ 8] = { 0};
+  static timed_t debounce_slot[ 14] = { 0};
 
   // Debounce
   gamepad->up     =  button_debounce( debounce_slot + 0,  gamepad->up);
@@ -594,6 +623,8 @@ static void process_fullswitch( gamepad_status_t* gamepad) {
   gamepad->fire4  =  button_debounce( debounce_slot + 8,  gamepad->fire4);
   gamepad->fire5  =  button_debounce( debounce_slot + 9,  gamepad->fire5);
   gamepad->fire6  =  button_debounce( debounce_slot + 10, gamepad->fire6);
+  gamepad->fire7  =  button_debounce( debounce_slot + 12, gamepad->fire7);
+  gamepad->fire8  =  button_debounce( debounce_slot + 13, gamepad->fire8);
   gamepad->start  =  button_debounce( debounce_slot + 11, gamepad->start);
 
   // Autofire
@@ -603,6 +634,8 @@ static void process_fullswitch( gamepad_status_t* gamepad) {
   gamepad->fire4 = do_autofire( autofire_slot + 3, gamepad->fire4, gamepad->AUTOFIRE_SELECTOR);
   gamepad->fire5 = do_autofire( autofire_slot + 4, gamepad->fire5, gamepad->AUTOFIRE_SELECTOR);
   gamepad->fire6 = do_autofire( autofire_slot + 5, gamepad->fire6, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire7 = do_autofire( autofire_slot + 6, gamepad->fire7, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire8 = do_autofire( autofire_slot + 7, gamepad->fire8, gamepad->AUTOFIRE_SELECTOR);
 
   gamepad_process_dpad( gamepad);
 }
