@@ -15,14 +15,14 @@ BUILDPROP="$BUILDPROP --build-property build.usb_product=\"ArdupadOne\""
 # ---------------------------------------------------------------------------------
 
 set -x # print commands before execution
+set -e # automatic exit on error
+rm -fR build/
 
 ## Arduino toolchain installation
 arduino-cli core install arduino:avr
 arduino-cli lib install Keyboard
-arduino-cli config init # --overwrite
+arduino-cli config init --overwrite
 # arduino-cli config set library.enable_unsafe_install false
-
-set -e # automatic exit on error
 
 SKETCH_DIR="$SCRDIR"
 SKETCH_NAME=$(basename "$SCRDIR")

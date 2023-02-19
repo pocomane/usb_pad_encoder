@@ -19,7 +19,9 @@ The "USB pad encoder with Arduino"'s Author, 2021
 
 // Configuration ------------------------------------------------------------------
 
-#define INPUT_PROTOCOL   SNES // FULLSWITCH, ATARI_PADDLE, SNES
+//#define ENABLE_SNES
+#define ENABLE_ATARI_PADDLE
+#define ENABLE_FULLSWITCH
 
 #define AUTOFIRE_MODE      ASSIST   // NONE, ASSIST, TOGGLE
 #define TAP_MAX_PERIOD     (200000) // us // used in any mode except none
@@ -30,6 +32,8 @@ The "USB pad encoder with Arduino"'s Author, 2021
 // This will make the dpad looks like a pair of "Digital axis"
 #define USE_HAT_FOR_DPAD
 
+// Advanced Configuration ---------------------------------------------------------
+
 //#define SIMULATION_MODE
 //#define DEBUG
 
@@ -37,82 +41,45 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define SERIAL_BPS 9600 // e.g. 32u4
 #define SERIAL_EOL "\n\r"
 
+#define SNES_LATCH_PIN  2
+#define SNES_CLOCK_PIN  3
+#define SNES_DATA_PIN   4
+
+#define FULLSWITCH_UP_PIN      16
+#define FULLSWITCH_DOWN_PIN     6
+#define FULLSWITCH_LEFT_PIN     7
+#define FULLSWITCH_RIGHT_PIN   10
+#define FULLSWITCH_SELECT_PIN   5 
+#define FULLSWITCH_COIN_PIN     8 
+#define FULLSWITCH_FIRE_1_PIN  14 
+#define FULLSWITCH_FIRE_2_PIN  15
+#define FULLSWITCH_FIRE_3_PIN  19
+#define FULLSWITCH_FIRE_4_PIN  20
+#define FULLSWITCH_FIRE_5_PIN  21
+#define FULLSWITCH_FIRE_6_PIN  18 
+#define FULLSWITCH_FIRE_7_PIN  22 
+
+#define ATARI_PADDLE_FIRST_FIRE_PIN     FULLSWITCH_FIRE_1_PIN
+#define ATARI_PADDLE_FIRST_ANGLE_PIN    18
+#define ATARI_PADDLE_SECOND_FIRE_PIN    FULLSWITCH_FIRE_2_PIN
+#define ATARI_PADDLE_SECOND_ANGLE_PIN   22
+
 // Configuration check and expansion ---------------------------------------------------------------
 
 #if defined(DEBUG) || defined(SIMULATION_MODE)
 #define USE_SERIAL
 #endif
 
-#define FULLSWITCH   1
-#define ATARI_PADDLE 2
-#define SNES         3
+#ifdef ENABLE_ATARI_PADDLE
+#define HID_AXIS_ENABLE
+#define HID_BUTTONS 7
+#else
+#define HID_BUTTONS 9
+#endif
 
 #define NONE   1
 #define ASSIST 2
 #define TOGGLE 3
-
-//
-// These macros align the field of gamepad_status_t with the ones reported
-// in the gamepad_hid_descriptor, i.e.
-//
-//  used in: F  FH A  S  SH
-//  ------------------------
-//  unused |  '  '  '  '  '
-//  unused |  '  '  '  '  '
-//  up     |  C  '  '  C  '
-//  down   |  C  '  '  C  '
-//  left   |  C  '  '  C  '
-//  right  |  C  '  '  C  '
-//  select |  C  C  '  C  C
-//  start  |  C  C  '  C  C
-//  ------------------------
-//  fire1  |  C  C  C  C  C
-//  fire2  |  C  C  C  C  C
-//  fire3  |  C  C  ,  C  C
-//  fire4  |  C  C  ,  C  C
-//  fire5  |  C  C  ,  C  C
-//  fire6  |  C  C  ,  C  C
-//  fire7  |  C  C  ,  ,  ,
-//  fire8  |  C  C  ,  ,  ,
-//  ------------------------
-//  F= fullswitch   xH= x with hat   A= atari paddle   S= SNES
-//  C= button count   '= offset   ,= padding
-//
-#if INPUT_PROTOCOL == FULLSWITCH && defined( USE_HAT_FOR_DPAD)
-#define HID_BUTTON_OFFSET   6
-#define HID_BUTTONS        10
-#define HID_BUTTON_PADDING  0
-#endif
-//
-#if INPUT_PROTOCOL == FULLSWITCH && !defined( USE_HAT_FOR_DPAD)
-#define HID_BUTTON_OFFSET   2
-#define HID_BUTTONS        14
-#define HID_BUTTON_PADDING  0
-#endif
-//
-#if INPUT_PROTOCOL == ATARI_PADDLE
-#define HID_AXIS_ENABLE
-#define HID_BUTTON_OFFSET  8
-#define HID_BUTTONS        2
-#define HID_BUTTON_PADDING 6
-#ifdef USE_HAT_FOR_DPAD
-#undef USE_HAT_FOR_DPAD
-#endif
-#endif
-//
-#if INPUT_PROTOCOL == SNES && defined( USE_HAT_FOR_DPAD)
-#define HID_BUTTON_OFFSET  6
-#define HID_BUTTONS        8
-#define HID_BUTTON_PADDING 2
-#endif
-//
-#if INPUT_PROTOCOL == SNES && !defined( USE_HAT_FOR_DPAD)
-#define HID_BUTTON_OFFSET   2
-#define HID_BUTTONS        12
-#define HID_BUTTON_PADDING  2
-#endif
-//
-
 
 // Generic routines and macros ---------------------------------------------------------------------
 
@@ -170,7 +137,7 @@ typedef struct {
   uint8_t fire5:   1;
   uint8_t fire6:   1;
   uint8_t fire7:   1;
-  uint8_t fire8:   1;
+  uint8_t unused2: 1;
 
 #ifdef USE_HAT_FOR_DPAD
   uint8_t	direction: 4;
@@ -183,19 +150,19 @@ static void gamepad_log(gamepad_status_t *status){
   LOG(1, "gamepad report state "
 
       "| %x%x%x%x "
-      "| %x%x%x%x "
+      "| %x%x%x "
       "| %x%x "
       "| %x%x%x%x "
 #ifdef USE_HAT_FOR_DPAD
       "# %x "
 #endif
 #ifdef HID_AXIS_ENABLE
-      "% %d %d "
+      "> %d %d "
 #endif
       ": %lu %lu",
 
       status->fire1, status->fire2, status->fire3, status->fire4,
-      status->fire5, status->fire6, status->fire7, status->fire8,
+      status->fire5, status->fire6, status->fire7,
       status->start, status->select,
       status->up, status->down, status->left, status->right,
 #ifdef USE_HAT_FOR_DPAD
@@ -228,6 +195,13 @@ void gamepad_send(gamepad_status_t *status){ gamepad_log( status); }
 // PROGMEM = store the data in the flash/program memory instead of SRAM; this is
 // needed by the HID library.
 static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
+
+#if defined( USE_HAT_FOR_DPAD)
+#define HID_BUTTON_OFFSET   6
+#else
+#define HID_BUTTON_OFFSET   2
+#endif
+#define HID_BUTTON_PADDING  (8 + 2 - HID_BUTTONS)
 
   // Gamepad
   0x05, 0x01,               //  USAGE_PAGE (Generic Desktop)
@@ -299,6 +273,9 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
 */
 
   0xc0                      //  END_COLLECTION
+
+#undef HID_BUTTON_OFFSET
+#undef HID_BUTTON_PADDING
 };
 
 void gamepad_init(){
@@ -319,7 +296,7 @@ void gamepad_send(gamepad_status_t *status){
 
 // Common input-related routines ---------------------------------------------------------------------
 
-static void gamepad_process_dpad( gamepad_status_t* gamepad){
+static void process_dpad( gamepad_status_t* gamepad){
 #ifdef USE_HAT_FOR_DPAD
   if( gamepad->up){
     if(      gamepad->left)  gamepad->direction = 8;
@@ -475,8 +452,16 @@ static int do_autofire( timed_t* last, int is_pressed, int option){
 #endif
 }
 
+static void process_autofire( gamepad_status_t* gamepad) {
+  static timed_t autofire_slot[ 4] = { 0};
+
+  gamepad->fire1 = do_autofire( autofire_slot + 0, gamepad->fire1, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire2 = do_autofire( autofire_slot + 1, gamepad->fire2, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire3 = do_autofire( autofire_slot + 2, gamepad->fire3, gamepad->AUTOFIRE_SELECTOR);
+  gamepad->fire4 = do_autofire( autofire_slot + 3, gamepad->fire4, gamepad->AUTOFIRE_SELECTOR);
+}
+
 // SwitchFull protocol ------------------------------------------------------------
-#if INPUT_PROTOCOL == FULLSWITCH
 
 //
 // Different controllers with the same logic:
@@ -556,29 +541,15 @@ static int do_autofire( timed_t* last, int is_pressed, int option){
 // . = not used for player controls
 //
 
-#define FULLSWITCH_COIN_PIN     2
-#define FULLSWITCH_SELECT_PIN   3
-#define FULLSWITCH_UP_PIN       4
-#define FULLSWITCH_DOWN_PIN     5
-#define FULLSWITCH_LEFT_PIN     6
-#define FULLSWITCH_RIGHT_PIN    7
-#define FULLSWITCH_FIRE_1_PIN   8
-#define FULLSWITCH_FIRE_2_PIN   9
-#define FULLSWITCH_FIRE_3_PIN  10
-#define FULLSWITCH_FIRE_4_PIN  16
-#define FULLSWITCH_FIRE_5_PIN  14
-#define FULLSWITCH_FIRE_6_PIN  15
-#define FULLSWITCH_FIRE_7_PIN  20
-#define FULLSWITCH_FIRE_8_PIN  21
-
 static void setup_fullswitch(void){
+#if defined(ENABLE_FULLSWITCH)
 
-  pinMode(FULLSWITCH_COIN_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_SELECT_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_UP_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_DOWN_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_LEFT_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_RIGHT_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_SELECT_PIN, INPUT_PULLUP);
+  pinMode(FULLSWITCH_COIN_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_FIRE_1_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_FIRE_2_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_FIRE_3_PIN, INPUT_PULLUP);
@@ -586,63 +557,33 @@ static void setup_fullswitch(void){
   pinMode(FULLSWITCH_FIRE_5_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_FIRE_6_PIN, INPUT_PULLUP);
   pinMode(FULLSWITCH_FIRE_7_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_FIRE_8_PIN, INPUT_PULLUP);
+#endif // ENABLE_FULLSWITCH
 }
+
 
 static void read_fullswitch( gamepad_status_t* gamepad) {
+#if defined( ENABLE_FULLSWITCH)
+  static timed_t debounce_slot[ 4 + HID_BUTTONS] = { 0};
 
-  gamepad->start = !digitalRead(FULLSWITCH_COIN_PIN);
-  gamepad->select= !digitalRead(FULLSWITCH_SELECT_PIN);
-  gamepad->up =    !digitalRead(FULLSWITCH_UP_PIN);
-  gamepad->down =  !digitalRead(FULLSWITCH_DOWN_PIN);
-  gamepad->left =  !digitalRead(FULLSWITCH_LEFT_PIN);
-  gamepad->right = !digitalRead(FULLSWITCH_RIGHT_PIN);
-  gamepad->fire1 = !digitalRead(FULLSWITCH_FIRE_1_PIN);
-  gamepad->fire2 = !digitalRead(FULLSWITCH_FIRE_2_PIN);
-  gamepad->fire3 = !digitalRead(FULLSWITCH_FIRE_3_PIN);
-  gamepad->fire4 = !digitalRead(FULLSWITCH_FIRE_4_PIN);
-  gamepad->fire5 = !digitalRead(FULLSWITCH_FIRE_5_PIN);
-  gamepad->fire6 = !digitalRead(FULLSWITCH_FIRE_6_PIN);
-  gamepad->fire7 = !digitalRead(FULLSWITCH_FIRE_8_PIN);
-  gamepad->fire8 = !digitalRead(FULLSWITCH_FIRE_7_PIN);
+#define RDD( I, P) button_debounce( debounce_slot + (I), !digitalRead( P ))
+  gamepad->up |=    RDD( 0, FULLSWITCH_UP_PIN);
+  gamepad->down |=  RDD( 1, FULLSWITCH_DOWN_PIN);
+  gamepad->left |=  RDD( 2, FULLSWITCH_LEFT_PIN);
+  gamepad->right |= RDD( 3, FULLSWITCH_RIGHT_PIN);
+  gamepad->select|= RDD( 4, FULLSWITCH_SELECT_PIN);
+  gamepad->start |= RDD( 5, FULLSWITCH_COIN_PIN);
+  gamepad->fire1 |= RDD( 6, FULLSWITCH_FIRE_1_PIN);
+  gamepad->fire2 |= RDD( 7, FULLSWITCH_FIRE_2_PIN);
+  gamepad->fire3 |= RDD( 8, FULLSWITCH_FIRE_3_PIN);
+  gamepad->fire4 |= RDD( 9, FULLSWITCH_FIRE_4_PIN);
+  gamepad->fire5 |= RDD( 10, FULLSWITCH_FIRE_5_PIN);
+  gamepad->fire6 |= RDD( 11, FULLSWITCH_FIRE_6_PIN);
+  gamepad->fire7 |= RDD( 12, FULLSWITCH_FIRE_7_PIN);
+#undef RDD
+#endif // ENABLE_FULLSWITCH
 }
-
-static void process_fullswitch( gamepad_status_t* gamepad) {
-  static timed_t autofire_slot[ 8] = { 0};
-  static timed_t debounce_slot[ 14] = { 0};
-
-  // Debounce
-  gamepad->up     =  button_debounce( debounce_slot + 0,  gamepad->up);
-  gamepad->down   =  button_debounce( debounce_slot + 1,  gamepad->down);
-  gamepad->left   =  button_debounce( debounce_slot + 2,  gamepad->left);
-  gamepad->right  =  button_debounce( debounce_slot + 3,  gamepad->right);
-  gamepad->select =  button_debounce( debounce_slot + 4,  gamepad->select);
-  gamepad->fire1  =  button_debounce( debounce_slot + 5,  gamepad->fire1);
-  gamepad->fire2  =  button_debounce( debounce_slot + 6,  gamepad->fire2);
-  gamepad->fire3  =  button_debounce( debounce_slot + 7,  gamepad->fire3);
-  gamepad->fire4  =  button_debounce( debounce_slot + 8,  gamepad->fire4);
-  gamepad->fire5  =  button_debounce( debounce_slot + 9,  gamepad->fire5);
-  gamepad->fire6  =  button_debounce( debounce_slot + 10, gamepad->fire6);
-  gamepad->fire7  =  button_debounce( debounce_slot + 12, gamepad->fire7);
-  gamepad->fire8  =  button_debounce( debounce_slot + 13, gamepad->fire8);
-  gamepad->start  =  button_debounce( debounce_slot + 11, gamepad->start);
-
-  // Autofire
-  gamepad->fire1 = do_autofire( autofire_slot + 0, gamepad->fire1, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire2 = do_autofire( autofire_slot + 1, gamepad->fire2, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire3 = do_autofire( autofire_slot + 2, gamepad->fire3, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire4 = do_autofire( autofire_slot + 3, gamepad->fire4, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire5 = do_autofire( autofire_slot + 4, gamepad->fire5, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire6 = do_autofire( autofire_slot + 5, gamepad->fire6, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire7 = do_autofire( autofire_slot + 6, gamepad->fire7, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire8 = do_autofire( autofire_slot + 7, gamepad->fire8, gamepad->AUTOFIRE_SELECTOR);
-
-  gamepad_process_dpad( gamepad);
-}
-#endif // FULLSWITCH
 
 // Atari Paddle protocol ----------------------------------------------------------
-#if INPUT_PROTOCOL == ATARI_PADDLE
 
 //
 // Front view of famle DB9
@@ -667,55 +608,46 @@ static void process_fullswitch( gamepad_status_t* gamepad) {
 // Angle pin resistence to the Return pin is proportional to the paddle position (linear 1 Mohm, 270 degree)
 //
 
-#define ATARI_PADDLE_FIRST_FIRE_PIN     22
-#define ATARI_PADDLE_FIRST_ANGLE_PIN    34
-#define ATARI_PADDLE_SECOND_FIRE_PIN    23
-#define ATARI_PADDLE_SECOND_ANGLE_PIN   35
-
 static void setup_atari_paddle(void){
+#if defined( ENABLE_ATARI_PADDLE)
 
   pinMode(ATARI_PADDLE_FIRST_FIRE_PIN, INPUT_PULLUP);
   pinMode(ATARI_PADDLE_FIRST_ANGLE_PIN, INPUT_PULLUP);
   pinMode(ATARI_PADDLE_SECOND_FIRE_PIN, INPUT_PULLUP);
   pinMode(ATARI_PADDLE_SECOND_ANGLE_PIN, INPUT_PULLUP);
+#endif // ENABLE_ATARI_PADDLE
 }
+
 
 static void read_atari_paddle( gamepad_status_t* gamepad) {
-
-  gamepad->fire1 = digitalRead( ATARI_PADDLE_FIRST_FIRE_PIN);
-  gamepad->fire2 = digitalRead( ATARI_PADDLE_SECOND_FIRE_PIN);
-  gamepad->axisX = analogRead( ATARI_PADDLE_FIRST_ANGLE_PIN);
-  gamepad->axisY = analogRead( ATARI_PADDLE_SECOND_ANGLE_PIN);
-}
-
-static void process_atari_paddle( gamepad_status_t* gamepad) {
-  static timed_t autofire_slot[ 2] = { 0};
+#if defined( ENABLE_ATARI_PADDLE)
   static timed_t debounce_slot[ 2] = { 0};
 
-  // Debounce
-  gamepad->fire1 = button_debounce( debounce_slot + 0, gamepad->fire1);
-  gamepad->fire1 = button_debounce( debounce_slot + 1, gamepad->fire1);
+#define RDD( I, P) button_debounce( debounce_slot + (I), !digitalRead( P ))
+  gamepad->fire1 |= RDD( 0, ATARI_PADDLE_FIRST_FIRE_PIN);
+  gamepad->fire2 |= RDD( 1, ATARI_PADDLE_SECOND_FIRE_PIN);
+#undef RDD
+  gamepad->axisX  = analogRead( ATARI_PADDLE_FIRST_ANGLE_PIN);
+  gamepad->axisY  = analogRead( ATARI_PADDLE_SECOND_ANGLE_PIN);
+#endif // ENABLE_ATARI_PADDLE
+}
 
-  // Autofire
-  // Last parameter is always zero since atari paddle have one fire button so the
-  // TOGGLE mode can no be used for autofire
-  gamepad->fire1 = do_autofire( autofire_slot + 0, gamepad->fire1, 0);
-  gamepad->fire2 = do_autofire( autofire_slot + 1, gamepad->fire2, 0);
-
-  // Moving average to reduce noise on the analog readinng
+static void process_atari_axis( gamepad_status_t* gamepad) {
+#if defined( ENABLE_ATARI_PADDLE)
   static int16_t first_axis_history[10] = {0};
   static int16_t second_axis_history[10] = {0};
+
+  // Moving average to reduce noise on the analog readinng
   gamepad->axisX = moving_average(first_axis_history,  10, gamepad->axisX);
   gamepad->axisY = moving_average(second_axis_history, 10, gamepad->axisY);
 
   // Axis calibration
-  gamepad->axisX *= 1;
-  gamepad->axisY *= 1;
+  gamepad->axisX = (gamepad->axisX - 500) << 6;
+  gamepad->axisY = (gamepad->axisY - 500) << 5;
+#endif // ENABLE_ATARI_PADDLE
 }
-#endif // ATARI_PADDLE
 
 // SNES pad protocol --------------------------------------------------------------
-#if INPUT_PROTOCOL == SNES
 
 //
 //   / """""""""""""""""""""""
@@ -740,11 +672,8 @@ static void process_atari_paddle( gamepad_status_t* gamepad) {
 //     12 us
 //
 
-#define SNES_LATCH_PIN  7
-#define SNES_CLOCK_PIN  8
-#define SNES_DATA_PIN   9
-
 static void setup_snes(void){
+#if defined( ENABLE_SNES)
 
   pinMode(SNES_CLOCK_PIN, OUTPUT);
   digitalWrite(SNES_CLOCK_PIN, HIGH);
@@ -755,9 +684,12 @@ static void setup_snes(void){
   pinMode(SNES_DATA_PIN, OUTPUT);
   digitalWrite(SNES_DATA_PIN, HIGH);
   pinMode(SNES_DATA_PIN, INPUT_PULLUP);
+#endif // ENALBE_SNES
 }
 
+#if defined( ENABLE_SNES)
 static int read_next_button_snes(int pin, int semiwait) {
+
   digitalWrite(pin, LOW);
   delayMicroseconds(semiwait);
   int result = !digitalRead(SNES_DATA_PIN);
@@ -765,40 +697,30 @@ static int read_next_button_snes(int pin, int semiwait) {
   delayMicroseconds(semiwait);
   return result;
 }
+#endif // ENALBE_SNES
 
 static void read_snes( gamepad_status_t* gamepad) {
+#if defined( ENABLE_SNES)
 
   digitalWrite(SNES_LATCH_PIN, HIGH);
   delayMicroseconds(12);
   digitalWrite(SNES_LATCH_PIN, LOW);
   delayMicroseconds(6);
 
-  gamepad->fire2 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // B
-  gamepad->fire4 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // Y
-  gamepad->select = read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad->start =  read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad->up =     read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad->down =   read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad->left =   read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad->right =  read_next_button_snes( SNES_CLOCK_PIN, 6);
-  gamepad->fire1 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // A
-  gamepad->fire3 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // X
-  gamepad->fire5 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // L
-  gamepad->fire6 =  read_next_button_snes( SNES_CLOCK_PIN, 6); // R
+  gamepad->fire2 |=  read_next_button_snes( SNES_CLOCK_PIN, 6); // B
+  gamepad->fire4 |=  read_next_button_snes( SNES_CLOCK_PIN, 6); // Y
+  gamepad->select |= read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->start |=  read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->up |=     read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->down |=   read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->left |=   read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->right |=  read_next_button_snes( SNES_CLOCK_PIN, 6);
+  gamepad->fire1 |=  read_next_button_snes( SNES_CLOCK_PIN, 6); // A
+  gamepad->fire3 |=  read_next_button_snes( SNES_CLOCK_PIN, 6); // X
+  gamepad->fire5 |=  read_next_button_snes( SNES_CLOCK_PIN, 6); // L
+  gamepad->fire6 |=  read_next_button_snes( SNES_CLOCK_PIN, 6); // R
+#endif // ENABLE_SNES
 }
-
-static void process_snes( gamepad_status_t* gamepad) {
-  static timed_t autofire_slot[ 4] = {0};
-
-  // Autofire
-  gamepad->fire1 = do_autofire( autofire_slot + 0, gamepad->fire1, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire2 = do_autofire( autofire_slot + 1, gamepad->fire2, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire3 = do_autofire( autofire_slot + 2, gamepad->fire3, gamepad->AUTOFIRE_SELECTOR);
-  gamepad->fire4 = do_autofire( autofire_slot + 3, gamepad->fire4, gamepad->AUTOFIRE_SELECTOR);
-
-  gamepad_process_dpad( gamepad);
-}
-#endif // SNES
 
 // dispatcher ---------------------------------------------------------------------
 
@@ -844,23 +766,14 @@ static void loop_last(void){
   // nothing to do
 }
 
-#if INPUT_PROTOCOL == FULLSWITCH
-#elif INPUT_PROTOCOL == ATARI_PADDLE
-#elif INPUT_PROTOCOL == SNES
-#else
-#error "selected INPUT_PROTOCOL is not supported"
-#endif
-
 void setup() {
   setup_first();
 
-#if INPUT_PROTOCOL == FULLSWITCH
   setup_fullswitch();
-#elif INPUT_PROTOCOL == ATARI_PADDLE
   setup_atari_paddle();
-#elif INPUT_PROTOCOL == SNES
   setup_snes();
-#endif
+
+for(int k=2; k<23; k+=1)pinMode(k, INPUT_PULLUP); // TODO : REMOVE !!!
 
   setup_last();
 }
@@ -870,19 +783,24 @@ void loop(){
 
   loop_first();
 
-  gamepad_status_t gamepad;
-  memset( &gamepad, sizeof( gamepad), 0);
+// TODO : Remove !!
+static int old[23] = {0};
+for(int k=2; k<23; k+=1){
+  int v = !digitalRead(k);
+  if (old[k] != v) LOG(1, "pin %d val %d\n", k, v);
+  old[k] = v;
+}
 
-#if INPUT_PROTOCOL == FULLSWITCH
+  gamepad_status_t gamepad = {0};
+  // memset( &gamepad, sizeof( gamepad), 0);
+
   read_fullswitch( &gamepad);
-  process_fullswitch( &gamepad);
-#elif INPUT_PROTOCOL == ATARI_PADDLE
   read_atari_paddle( &gamepad);
-  process_atari_paddle( &gamepad);
-#elif INPUT_PROTOCOL == SNES
   read_snes( &gamepad);
-  process_snes( &gamepad);
-#endif
+
+  process_autofire( &gamepad);
+  process_atari_axis( &gamepad);
+  process_dpad( &gamepad);
 
   if (memcmp( &old_status, &gamepad, sizeof( gamepad)))
     gamepad_send(&gamepad);
