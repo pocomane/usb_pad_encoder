@@ -11,17 +11,35 @@ of the following licences:
 - CC0 https://creativecommons.org/publicdomain/zero/1.0/legalcode
 - Unlicense https://unlicense.org/
 
-The "USB pad encoder with Arduino"'s Author, 2021
+The "USB pad encoder with Arduino"'s Author, 2023
 
 ***********************************************************************************/
 
-#include <Arduino.h>
+// # Description
+// This is an usb encoder that lets you to read simple switched plus various
+// common pad protocols. You can configure some of its aspects in the first two
+// sections (Configuration and Advanced Configuration). Look at the Readme file
+// for further infromations.
+//
+// # Usage
+// This is written as a single file library. Include it as a normal header
+// where you needed to call its functions, i.e:
+//   usb_pad_encoder_init, usb_pad_encoder_step, gamepad_log
+// Moreover it must be included in a single place after the definition of the
+//   INCLUDE_IMPLEMENTION
+// macro (it will include the actual code). In such place the following
+// functions or macros MUST be visible:
+//   LOG, setup_input, setup_output, get_elasped_microsecond, delay_microsecond,
+//   read_digital, read_analog, write_digital, use_hid_descriptor, send_hid_report
+// Moreover the following macro must be set if some platform need additional
+// attributes for the HID descriptor array:
+//   HID_DESCRIPTOR_ATTRIBUTE
 
 // Configuration ------------------------------------------------------------------
 
-//#define ENABLE_SNES
-#define ENABLE_ATARI_PADDLE
+#define ENABLE_SNES
 #define ENABLE_FULLSWITCH
+//#define ENABLE_ATARI_PADDLE
 
 #define AUTOFIRE_MODE      ASSIST   // NONE, ASSIST, TOGGLE
 #define TAP_MAX_PERIOD     (200000) // us // used in any mode except none
@@ -33,13 +51,6 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define USE_HAT_FOR_DPAD
 
 // Advanced Configuration ---------------------------------------------------------
-
-//#define SIMULATION_MODE
-//#define DEBUG
-
-// for debug/logging only
-#define SERIAL_BPS 9600 // e.g. 32u4
-#define SERIAL_EOL "\n\r"
 
 #define SNES_LATCH_PIN  2
 #define SNES_CLOCK_PIN  3
@@ -64,10 +75,33 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define ATARI_PADDLE_SECOND_FIRE_PIN    FULLSWITCH_FIRE_2_PIN
 #define ATARI_PADDLE_SECOND_ANGLE_PIN   22
 
-// Configuration check and expansion ---------------------------------------------------------------
+// Header guard  ----------------------------------------------------------
+// TODO : move this at very beginning of this file ?
 
-#if defined(DEBUG) || defined(SIMULATION_MODE)
-#define USE_SERIAL
+// This DOES NOT end at the end of the file, but some line below, since the rest
+// of the file is protected by the Implementation guard (i.e. it will be included
+// in a single place)
+#ifndef USB_PAD_ENCODER_H
+#define USB_PAD_ENCODER_H
+
+#include <stdint.h>
+#include <string.h>
+
+void gamepad_log(void* status);
+void usb_pad_encoder_init();
+void usb_pad_encoder_step();
+
+#endif // USB_PAD_ENCODER_H
+
+// Implementation guard  ----------------------------------------------------------
+
+// This lasts until the end of the file
+#ifdef INCLUDE_IMPLEMENTATION
+
+// Configuration check and expansion ----------------------------------------------
+
+#ifndef HID_DESCRIPTOR_ATTRIBUTE
+#define HID_DESCRIPTOR_ATTRIBUTE
 #endif
 
 #ifdef ENABLE_ATARI_PADDLE
@@ -81,31 +115,10 @@ The "USB pad encoder with Arduino"'s Author, 2021
 #define ASSIST 2
 #define TOGGLE 3
 
-// Generic routines and macros ---------------------------------------------------------------------
-
-#ifndef USE_SERIAL
-#define LOG(...)
-#else // USE_SERIAL
-static void log(const char* file, int line, const char *format, ...){
-
-  char linebuffer[256];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(linebuffer, sizeof(linebuffer), format, args);
-  va_end(args);
-
-  Serial.print(file);
-  Serial.print(":");
-  Serial.print(line);
-  Serial.print(" ");
-  Serial.print(linebuffer);
-  Serial.print(SERIAL_EOL);
-}
-#define LOG(C, ...) do{ if( C) log(__FILE__, __LINE__, __VA_ARGS__);} while(0)
-#endif // USE_SERIAL
+// Generic routines and macros ----------------------------------------------------
 
 static unsigned long now_us = 0;
-static void next_time_step(){ now_us = micros();}
+static void next_time_step(){ now_us = get_elasped_microsecond();}
 static unsigned long current_time_step(){ return now_us;}
 
 typedef struct{
@@ -146,7 +159,8 @@ typedef struct {
 
 } gamepad_status_t;
 
-static void gamepad_log(gamepad_status_t *status){
+void gamepad_log(void* data){
+  gamepad_status_t* status = (gamepad_status_t*) data;
   LOG(1, "gamepad report state "
 
       "| %x%x%x%x "
@@ -171,30 +185,16 @@ static void gamepad_log(gamepad_status_t *status){
 #ifdef HID_AXIS_ENABLE
       status->axisX, status->axisY,
 #endif
-      micros() - current_time_step(), current_time_step()
+      get_elasped_microsecond() - current_time_step(), current_time_step()
    );
 }
 
-// USB HID wrapper ---------------------------------------------------------------------
-
-#ifdef SIMULATION_MODE
-
-void gamepad_init(){ LOG(1, "gamepad simulation initialized", 0); }
-void gamepad_send(gamepad_status_t *status){ gamepad_log( status); }
-
-#else // ! SIMULATION_MODE
-
-#include "HID.h"
-#if !defined(_USING_HID)
-#error "Arduino board does not support PluggubleHID module"
-#endif
+// USB HID wrapper ----------------------------------------------------------------
 
 #define HID_REPORT_ID (0x06)
 
 // The content of this array must match the definition of gamepad_status_t.
-// PROGMEM = store the data in the flash/program memory instead of SRAM; this is
-// needed by the HID library.
-static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
+static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
 
 #if defined( USE_HAT_FOR_DPAD)
 #define HID_BUTTON_OFFSET   6
@@ -280,21 +280,15 @@ static const uint8_t gamepad_hid_descriptor[] PROGMEM = {
 
 void gamepad_init(){
 
-  static HIDSubDescriptor node(gamepad_hid_descriptor, sizeof(gamepad_hid_descriptor));
-  HID().AppendDescriptor(&node);
-
-  LOG(1, "gamepad initialized", 0);
+  use_hid_descriptor(gamepad_hid_descriptor, sizeof(gamepad_hid_descriptor));
 }
 
 void gamepad_send(gamepad_status_t *status){
 
-  HID().SendReport( HID_REPORT_ID, status, sizeof(*status));
-  gamepad_log(status);
+  send_hid_report( HID_REPORT_ID, status, sizeof(*status));
 }
 
-#endif // ! SIMULATION_MODE
-
-// Common input-related routines ---------------------------------------------------------------------
+// Common input-related routines --------------------------------------------------
 
 static void process_dpad( gamepad_status_t* gamepad){
 #ifdef USE_HAT_FOR_DPAD
@@ -357,7 +351,7 @@ static int16_t moving_average(int16_t* buffer, int16_t size, int16_t newval){
   return result;
 }
 
-// Autofire ---------------------------------------------------------------------
+// Autofire -----------------------------------------------------------------------
 
 static int autofire_none( timed_t* last, int is_pressed, int option){
   return is_pressed;
@@ -544,19 +538,19 @@ static void process_autofire( gamepad_status_t* gamepad) {
 static void setup_fullswitch(void){
 #if defined(ENABLE_FULLSWITCH)
 
-  pinMode(FULLSWITCH_UP_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_DOWN_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_LEFT_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_RIGHT_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_SELECT_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_COIN_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_FIRE_1_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_FIRE_2_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_FIRE_3_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_FIRE_4_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_FIRE_5_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_FIRE_6_PIN, INPUT_PULLUP);
-  pinMode(FULLSWITCH_FIRE_7_PIN, INPUT_PULLUP);
+  setup_input( FULLSWITCH_UP_PIN, 1);
+  setup_input( FULLSWITCH_DOWN_PIN, 1);
+  setup_input( FULLSWITCH_LEFT_PIN, 1);
+  setup_input( FULLSWITCH_RIGHT_PIN, 1);
+  setup_input( FULLSWITCH_SELECT_PIN, 1);
+  setup_input( FULLSWITCH_COIN_PIN, 1);
+  setup_input( FULLSWITCH_FIRE_1_PIN, 1);
+  setup_input( FULLSWITCH_FIRE_2_PIN, 1);
+  setup_input( FULLSWITCH_FIRE_3_PIN, 1);
+  setup_input( FULLSWITCH_FIRE_4_PIN, 1);
+  setup_input( FULLSWITCH_FIRE_5_PIN, 1);
+  setup_input( FULLSWITCH_FIRE_6_PIN, 1);
+  setup_input( FULLSWITCH_FIRE_7_PIN, 1);
 #endif // ENABLE_FULLSWITCH
 }
 
@@ -565,7 +559,7 @@ static void read_fullswitch( gamepad_status_t* gamepad) {
 #if defined( ENABLE_FULLSWITCH)
   static timed_t debounce_slot[ 4 + HID_BUTTONS] = { 0};
 
-#define RDD( I, P) button_debounce( debounce_slot + (I), !digitalRead( P ))
+#define RDD( I, P) button_debounce( debounce_slot + (I), !read_digital( P ))
   gamepad->up |=    RDD( 0, FULLSWITCH_UP_PIN);
   gamepad->down |=  RDD( 1, FULLSWITCH_DOWN_PIN);
   gamepad->left |=  RDD( 2, FULLSWITCH_LEFT_PIN);
@@ -611,10 +605,10 @@ static void read_fullswitch( gamepad_status_t* gamepad) {
 static void setup_atari_paddle(void){
 #if defined( ENABLE_ATARI_PADDLE)
 
-  pinMode(ATARI_PADDLE_FIRST_FIRE_PIN, INPUT_PULLUP);
-  pinMode(ATARI_PADDLE_FIRST_ANGLE_PIN, INPUT_PULLUP);
-  pinMode(ATARI_PADDLE_SECOND_FIRE_PIN, INPUT_PULLUP);
-  pinMode(ATARI_PADDLE_SECOND_ANGLE_PIN, INPUT_PULLUP);
+  setup_input( ATARI_PADDLE_FIRST_FIRE_PIN, 1);
+  setup_input( ATARI_PADDLE_FIRST_ANGLE_PIN, 1);
+  setup_input( ATARI_PADDLE_SECOND_FIRE_PIN, 1);
+  setup_input( ATARI_PADDLE_SECOND_ANGLE_PIN, 1);
 #endif // ENABLE_ATARI_PADDLE
 }
 
@@ -623,12 +617,12 @@ static void read_atari_paddle( gamepad_status_t* gamepad) {
 #if defined( ENABLE_ATARI_PADDLE)
   static timed_t debounce_slot[ 2] = { 0};
 
-#define RDD( I, P) button_debounce( debounce_slot + (I), !digitalRead( P ))
+#define RDD( I, P) button_debounce( debounce_slot + (I), !read_digital( P ))
   gamepad->fire1 |= RDD( 0, ATARI_PADDLE_FIRST_FIRE_PIN);
   gamepad->fire2 |= RDD( 1, ATARI_PADDLE_SECOND_FIRE_PIN);
 #undef RDD
-  gamepad->axisX  = analogRead( ATARI_PADDLE_FIRST_ANGLE_PIN);
-  gamepad->axisY  = analogRead( ATARI_PADDLE_SECOND_ANGLE_PIN);
+  gamepad->axisX  = read_analog( ATARI_PADDLE_FIRST_ANGLE_PIN);
+  gamepad->axisY  = read_analog( ATARI_PADDLE_SECOND_ANGLE_PIN);
 #endif // ENABLE_ATARI_PADDLE
 }
 
@@ -675,26 +669,26 @@ static void process_atari_axis( gamepad_status_t* gamepad) {
 static void setup_snes(void){
 #if defined( ENABLE_SNES)
 
-  pinMode(SNES_CLOCK_PIN, OUTPUT);
-  digitalWrite(SNES_CLOCK_PIN, HIGH);
+  setup_output( SNES_CLOCK_PIN);
+  write_digital(SNES_CLOCK_PIN, 1);
 
-  pinMode(SNES_LATCH_PIN, OUTPUT);
-  digitalWrite(SNES_LATCH_PIN, LOW);
+  setup_output( SNES_LATCH_PIN);
+  write_digital(SNES_LATCH_PIN, 0);
 
-  pinMode(SNES_DATA_PIN, OUTPUT);
-  digitalWrite(SNES_DATA_PIN, HIGH);
-  pinMode(SNES_DATA_PIN, INPUT_PULLUP);
+  setup_output( SNES_DATA_PIN);
+  write_digital(SNES_DATA_PIN, 1);
+  setup_input( SNES_DATA_PIN, 1);
 #endif // ENALBE_SNES
 }
 
 #if defined( ENABLE_SNES)
 static int read_next_button_snes(int pin, int semiwait) {
 
-  digitalWrite(pin, LOW);
-  delayMicroseconds(semiwait);
-  int result = !digitalRead(SNES_DATA_PIN);
-  digitalWrite(pin, HIGH);
-  delayMicroseconds(semiwait);
+  write_digital(pin, 0);
+  delay_microsecond(semiwait);
+  int result = !read_digital( SNES_DATA_PIN);
+  write_digital(pin, 1);
+  delay_microsecond(semiwait);
   return result;
 }
 #endif // ENALBE_SNES
@@ -702,10 +696,10 @@ static int read_next_button_snes(int pin, int semiwait) {
 static void read_snes( gamepad_status_t* gamepad) {
 #if defined( ENABLE_SNES)
 
-  digitalWrite(SNES_LATCH_PIN, HIGH);
-  delayMicroseconds(12);
-  digitalWrite(SNES_LATCH_PIN, LOW);
-  delayMicroseconds(6);
+  write_digital(SNES_LATCH_PIN, 1);
+  delay_microsecond(12);
+  write_digital(SNES_LATCH_PIN, 0);
+  delay_microsecond(6);
 
   gamepad->fire2 |=  read_next_button_snes( SNES_CLOCK_PIN, 6); // B
   gamepad->fire4 |=  read_next_button_snes( SNES_CLOCK_PIN, 6); // Y
@@ -724,72 +718,19 @@ static void read_snes( gamepad_status_t* gamepad) {
 
 // dispatcher ---------------------------------------------------------------------
 
-void setup_first() {
-
-#ifdef USE_SERIAL
-  Serial.begin(SERIAL_BPS);
-#endif
+void usb_pad_encoder_init(){
   
   gamepad_init();
-}
-
-void setup_last() {
-
-  next_time_step();
-
-#ifdef LED_BUILTIN_TX
-  // shutdown annoying leds
-  pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(LED_BUILTIN_RX, OUTPUT);
-  pinMode(LED_BUILTIN_TX, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);
-  digitalWrite(LED_BUILTIN_RX, HIGH);
-  digitalWrite(LED_BUILTIN_TX, HIGH);
-#endif // LED_BUILTIN_TX
-
-  LOG(1, "Setup completed");
-}
-
-static void loop_first(void){
-
-  next_time_step();
-
-#ifdef LED_BUILTIN_TX
-  // the bootloader continously turn on the annoying leds, shutdown
-  digitalWrite(LED_BUILTIN, HIGH);
-  digitalWrite(LED_BUILTIN_RX, HIGH);
-  digitalWrite(LED_BUILTIN_TX, HIGH);
-#endif // LED_BUILTIN_TX
-}
-
-static void loop_last(void){
-  // nothing to do
-}
-
-void setup() {
-  setup_first();
-
   setup_fullswitch();
   setup_atari_paddle();
   setup_snes();
-
-for(int k=2; k<23; k+=1)pinMode(k, INPUT_PULLUP); // TODO : REMOVE !!!
-
-  setup_last();
+  next_time_step();
 }
 
-void loop(){
+void usb_pad_encoder_step(){
   static gamepad_status_t old_status = {0};
 
-  loop_first();
-
-// TODO : Remove !!
-static int old[23] = {0};
-for(int k=2; k<23; k+=1){
-  int v = !digitalRead(k);
-  if (old[k] != v) LOG(1, "pin %d val %d\n", k, v);
-  old[k] = v;
-}
+  next_time_step();
 
   gamepad_status_t gamepad = {0};
   // memset( &gamepad, sizeof( gamepad), 0);
@@ -805,7 +746,10 @@ for(int k=2; k<23; k+=1){
   if (memcmp( &old_status, &gamepad, sizeof( gamepad)))
     gamepad_send(&gamepad);
   old_status = gamepad;
-
-  loop_last();
 }
+
+// --------------------------------------------------------------------------------
+// Implementation guard ends
+#endif // INCLUDE_IMPLEMENTATION
+// --------------------------------------------------------------------------------
 

@@ -18,22 +18,22 @@ set -x # print commands before execution
 set -e # automatic exit on error
 rm -fR build/
 
+SKETCH_DIR="$SCRDIR"
+SKETCH_NAME=$(basename "$SCRDIR")
+
+# Prepare directory
+rm -fR "$SKETCH_DIR"/build
+mkdir -p "$SKETCH_DIR"/build
+
+# Compile and Run Test
+gcc -I ./ test/a_test.c -o "$SKETCH_DIR"/build/a_test.exe
+"$SKETCH_DIR"/build/a_test.exe
+
 ## Arduino toolchain installation
 arduino-cli core install arduino:avr
 arduino-cli lib install Keyboard
 arduino-cli config init --overwrite
 # arduino-cli config set library.enable_unsafe_install false
-
-SKETCH_DIR="$SCRDIR"
-SKETCH_NAME=$(basename "$SCRDIR")
-
-# Prepare directory
-#rm -fR "$SKETCH_DIR"/build
-mkdir -p "$SKETCH_DIR"/build
-cat > "$SKETCH_DIR"/"$SKETCH_NAME".ino <<EOF
-// This .ino file is just a boilerplate.
-// All the code is in the .cpp file.
-EOF
 
 # Compile
 arduino-cli compile $BUILDPROP -b arduino:avr:micro "$SKETCH_DIR" --build-path="$SKETCH_DIR"/build
