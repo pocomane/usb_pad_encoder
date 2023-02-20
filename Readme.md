@@ -1,24 +1,49 @@
 
 # USB game-pad encoder with Arduino
 
-This is a Arduino sketch to read a various pad protocols and convert them to
-USB HID events. It is focused on pads of old consoles like the SNES.
+This code let you to read various pad protocols and convert them to USB HID
+events. It is focused on pads of old consoles like the SNES, and self-built
+arcade sticks.
 
-# Select the protocol
+# Build an adaptor
 
-By default the sketch is configured to read the SNES protocol. To change it,
-just set the `INPUT_PROTOCOL` macro at beginning of the sketch to one of the
-following supported protocols:
+The code supports the Arduino IDE, but it should be simple to port to other
+platforms too. In particular, out of the box it is cofigured for a 'Arduino
+Micro' board based on the 32u4.
 
-- `SNES` - To read NES or SNES pads
-- `FULLSWITCH` - To read the controllers made fully of switches, like Atari 2600,
-  Commodore, Amiga and JAMMA.
-- `ATARI_PADDLE` - To read dual paddle controller for Atari 2600. This is in
-  development, it is NOT TESTED YET !
+You need to attach the board to the PC through the USB. Then you have to clone
+this repository and use the Arduino IDE or `arduini-cli` to compile and flash
+the code. Alternative you can simply launch the `build.sh` script that will
+automate the steps. It uses `arduino-cli` that must be installed in the system.
+
+Note: if you want use the Arduino IDE to compile the code, some version may
+need the joystick library: https://github.com/MHeironimus/ArduinoJoystickLibrary .
+
+By default all the supported protocols are enabled contemporary but all will be
+seens as a single pad. So, you can connect multiple pad of different kind, but
+the host will see the events coming from the same soruce.
+
+Here there is the mapping you have to follow for every pad.
+
+TODO : Draw schematics !
+
+# Select the accepted protocols
+
+You can disable or enable support for some protocol, by commenting or uncommenting
+the definition of the following macro at the beginning of `usb_pad_encoder.h`. By
+default they are all enabled, except the `ATARI_PADDLE` that is still in
+development.
+
+- `ENABLE_SNES` - To read NES or SNES pads
+- `ENABLE_FULLSWITCH` - To read the controllers made fully of switches, like Atari 2600,
+  Commodore, Amiga, JAMMA or self-built arcade sticks. Basically it supports a
+  stick and 7 buttons.  Disabling ATARI_PADDLE other 2. ( TODO : increment button
+  count also if SNES is disabled)
+- `ATARI_PADDLE` - To read dual paddle controller for Atari 2600.
 
 # Auto-fire
 
-The sketch has an auto-fire assist feature enabled. With a small change you can
+By default the auto-fire assist feature enabled. With a small change you can
 turn it off or use a more classic auto-fire mode. The two modes supported are
 the following.
 
@@ -29,27 +54,8 @@ you release the button.
 In the TOGGLE mode, if you press and release SELECT while one of the A/B/X/Y
 button is down it will enable and disable the auto-fire for that button.
 
-# Compile and flash
-
-It should be easy to compile and flash the sketch using the Arduino IDE or
-`arduino-cli`, however the `build.sh` script is provided. It uses `arduino-cli`
-(that must be installed in the system) to install the dependencies, to compile
-the code, and to upload it to an arduino board. The script should make simple
-also to modify some setting, like the name with which the Arduino board will
-present itself.
-
-Note: if you want use the Arduino IDE to compile the code, some version may
-need the joystick library: https://github.com/MHeironimus/ArduinoJoystickLibrary .
-
-# Build an adaptor
-
-TODO : write instructions !
-
-# Configure auto-fire mode
-
-The sketch can be configured to enable two kind of auto-fire. You have just to
-set the `AUTOFIRE_MODE` macro at the beginning of the file to `NONE`, `ASSIST`
-or `TOGGLE`.
+To select the mode, You have just to set the `AUTOFIRE_MODE` macro at the
+beginning of `usb_pad_encoder.h` to `NONE`, `ASSIST` or `TOGGLE`.
 
 In the `NONE` mode, no auto-fire is generated, like the original SNES pad.
 
@@ -65,15 +71,9 @@ If you selected the `TOGGLE` mode, you can use the `AUTOFIRE_SELECTOR` to chage
 the button to use as toggle in the `TOGGLE` mode (the default is `select`). Note
 that some pad with few buttons (like the Atari one) can not use this mode.
 
-# Configure simulation mode
-
-If you define the `SIMULATION_MODE` at beginning of the source, a simulation
-mode will be enabled. In such mode the board will not register itself as a HID
-device neither it will send any HID events. However it will enable logging and
-debug message over serial port, so you can inspect its operation with serial
-console client like `minicom`. This mode is useful in development.
-
 # Configure Arduino USB name
+
+TODO : update this section ! it is old! Now just need to update the `build.sh`
 
 To change the name that arduino uses to identify itself on USB, you have to
 change the `avr/boards.txt` file in the IDE setup folder. E.g., if you have an
@@ -100,4 +100,8 @@ micro.build.usb_product="SNES USB pad (arduino)"
 This for example is usefull if you want to connect different kind of
 arduino-powered to the same computer and have it to remember setups for each of
 them.
+
+# Code organization
+
+TODO : exmplain Single File Library and Tests !
 
