@@ -1,17 +1,18 @@
 /***********************************************************************************
 
-This is free and unencumbered work released into the public domain.
+Hereby, the Authors release this software into the public domain, in order to make
+it as free and unencumbered as possible.
 
-Should the previous statement, for any reason, be judged legally invalid or
-uneffective under applicable law, the work is made avaiable under the terms of one
-of the following licences:
+Should the previous statement be judged legally invalid or uneffective under
+applicable law, the is made avaiable under the terms of one of the
+following licences:
 
-- Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
-- MIT License https://opensource.org/licenses/MIT
 - CC0 https://creativecommons.org/publicdomain/zero/1.0/legalcode
+- MIT License https://opensource.org/licenses/MIT
+- Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
 - Unlicense https://unlicense.org/
 
-The "USB pad encoder with Arduino"'s Author, 2023
+The "USB pad encoder with Arduino"'s Authors, 2023
 
 ***********************************************************************************/
 
