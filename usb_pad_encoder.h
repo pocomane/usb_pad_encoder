@@ -104,11 +104,17 @@ void usb_pad_encoder_step();
 #define HID_DESCRIPTOR_ATTRIBUTE
 #endif
 
+#ifdef USE_HAT_FOR_DPAD
+#define HID_DPAD_BUTTON_LIKE 0
+#else
+#define HID_DPAD_BUTTON_LIKE 4
+#endif
+
 #ifdef ENABLE_ATARI_PADDLE
 #define HID_AXIS_ENABLE
-#define HID_BUTTONS 7
+#define HID_BUTTONS (7 + HID_DPAD_BUTTON_LIKE)
 #else
-#define HID_BUTTONS 9
+#define HID_BUTTONS (9 + HID_DPAD_BUTTON_LIKE)
 #endif
 
 #define NONE   1
@@ -153,8 +159,8 @@ typedef struct {
   uint8_t unused2: 1;
 
 #ifdef USE_HAT_FOR_DPAD
-  uint8_t	direction: 4;
   uint8_t	unused1: 4;
+  uint8_t	direction: 4;
 #endif
 
 } gamepad_status_t;
@@ -193,15 +199,15 @@ void gamepad_log(void* data){
 
 #define HID_REPORT_ID (0x06)
 
-// The content of this array must match the definition of gamepad_status_t.
-static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
-
 #if defined( USE_HAT_FOR_DPAD)
 #define HID_BUTTON_OFFSET   6
 #else
 #define HID_BUTTON_OFFSET   2
 #endif
-#define HID_BUTTON_PADDING  (8 + 2 - HID_BUTTONS)
+#define HID_BUTTON_PADDING  (8 + 2 + 4 - HID_BUTTONS)
+
+// The content of this array must match the definition of gamepad_status_t.
+static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
 
   // Gamepad
   0x05, 0x01,               //  USAGE_PAGE (Generic Desktop)
@@ -231,6 +237,7 @@ static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
     0x81, 0x03,              //    INPUT (Cnst,Var,Abs)
 #endif
 
+#if HID_BUTTONS > 0
     // Active buttons
     0x05, 0x09,             //    USAGE_PAGE (Button)
       0x19, 0x01,           //      USAGE_MINIMUM (Button 1)
@@ -240,6 +247,7 @@ static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
     0x75, 0x01,             //    REPORT_SIZE (1)
     0x95, HID_BUTTONS,      //    REPORT_COUNT (N = HID_BUTTONS)
     0x81, 0x02,             //    INPUT (Data,Var,Abs)
+#endif
 
 #if HID_BUTTON_PADDING > 0
     // Mask trailing bits
@@ -252,11 +260,13 @@ static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
     // Hat Switches
     0x05, 0x01,             //    USAGE_PAGE (Generic Desktop)
     0x09, 0x39,             //    USAGE (Hat switch)
-    // 0x09, 0x39,             //    USAGE (Hat switch) // uncomment for a second hat
       0x15, 0x01,           //      LOGICAL_MINIMUM (1)
       0x25, 0x08,           //      LOGICAL_MAXIMUM (8)
-    0x95, 0x01,             //    REPORT_COUNT (1) // set to 2 for a second hat
+    // 0x46, 0x3B, 0x01,       //    Physical Maximum  : 315 degrees (Optional)
+    0x95, 0x01,             //    REPORT_COUNT (1)
     0x75, 0x04,             //    REPORT_SIZE (4)
+    // 0x65, 0x14,             //    Unit: English Rotation/Angular Position 1 degree (Optional)
+    // 0x81, 0x42,             //    INPUT (Data, Var, Abs, Null State)
     0x81, 0x02,             //    INPUT (Data,Var,Abs)
 #endif
 
@@ -273,14 +283,21 @@ static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
 */
 
   0xc0                      //  END_COLLECTION
-
-#undef HID_BUTTON_OFFSET
-#undef HID_BUTTON_PADDING
 };
 
 void gamepad_init(){
 
   use_hid_descriptor(gamepad_hid_descriptor, sizeof(gamepad_hid_descriptor));
+
+  int axis, hat = 0;
+#ifdef HID_AXIS_ENABLE
+  axis = 2;
+#endif
+#ifdef USE_HAT_FOR_DPAD
+  hat = 1;
+#endif
+  LOG(1, "id: %d, axis: %d, offset: %d, button: %d, padding: %d, hat: %d",
+      HID_REPORT_ID, axis, HID_BUTTON_OFFSET, HID_BUTTONS, HID_BUTTON_PADDING, hat);
 }
 
 void gamepad_send(gamepad_status_t *status){
@@ -557,7 +574,7 @@ static void setup_fullswitch(void){
 
 static void read_fullswitch( gamepad_status_t* gamepad) {
 #if defined( ENABLE_FULLSWITCH)
-  static timed_t debounce_slot[ 4 + HID_BUTTONS] = { 0};
+  static timed_t debounce_slot[ 13] = { 0};
 
 #define RDD( I, P) button_debounce( debounce_slot + (I), !read_digital( P ))
   gamepad->up |=    RDD( 0, FULLSWITCH_UP_PIN);

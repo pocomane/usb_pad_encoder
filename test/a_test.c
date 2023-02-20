@@ -64,7 +64,7 @@ static void send_hid_report( int id, void* data, size_t len){
 
 int main(){
   input = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1";
-  usb_pad_encoder_step();
+  usb_pad_encoder_init();
   while( input && *input){
     elapsed_us += 100;
     usb_pad_encoder_step();
