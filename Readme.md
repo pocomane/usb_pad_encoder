@@ -27,6 +27,15 @@ Here there is the mapping you have to follow for every pad.
 
 TODO : Draw schematics !
 
+# Build a compact DB15 adapter
+
+The default pinout was chosen to make simple the creation of compact DB15 <-> USB
+adapter, like the ones in the photo, that are compatible with Neogeo AES, but
+carries also the SNES controller signals and one additional button.
+
+TODO : Add photo !
+TODO : Draw schematics !
+
 # Select the accepted protocols
 
 You can disable or enable support for some protocol, by commenting or uncommenting
@@ -36,9 +45,9 @@ development.
 
 - `ENABLE_SNES` - To read NES or SNES pads
 - `ENABLE_FULLSWITCH` - To read the controllers made fully of switches, like Atari 2600,
-  Commodore, Amiga, JAMMA or self-built arcade sticks. Basically it supports a
-  stick and 7 buttons.  Disabling ATARI_PADDLE other 2. ( TODO : increment button
-  count also if SNES is disabled)
+  Commodore, Amiga, Neogeo AES, JAMMA or self-built arcade sticks. Basically it
+  supports a stick and 7 buttons.  Disabling ATARI_PADDLE other 2. ( TODO :
+  increment button count also if SNES is disabled)
 - `ATARI_PADDLE` - To read dual paddle controller for Atari 2600.
 
 # Auto-fire

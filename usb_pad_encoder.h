@@ -1,10 +1,10 @@
 /***********************************************************************************
 
-Hereby, the Authors release this software into the public domain, in order to make
+Hereby the Authors release this software into the public domain, in order to make
 it as free and unencumbered as possible.
 
 Should the previous statement be judged legally invalid or uneffective under
-applicable law, the is made avaiable under the terms of one of the
+applicable law, the work is made avaiable under the terms of one of the
 following licences:
 
 - CC0 https://creativecommons.org/publicdomain/zero/1.0/legalcode
@@ -58,23 +58,23 @@ The "USB pad encoder with Arduino"'s Authors, 2023
 #define SNES_DATA_PIN   4
 
 #define FULLSWITCH_UP_PIN      16
-#define FULLSWITCH_DOWN_PIN     6
-#define FULLSWITCH_LEFT_PIN     7
-#define FULLSWITCH_RIGHT_PIN   10
-#define FULLSWITCH_SELECT_PIN   5 
-#define FULLSWITCH_COIN_PIN     8 
-#define FULLSWITCH_FIRE_1_PIN  14 
-#define FULLSWITCH_FIRE_2_PIN  15
-#define FULLSWITCH_FIRE_3_PIN  19
-#define FULLSWITCH_FIRE_4_PIN  20
+#define FULLSWITCH_DOWN_PIN     8
+#define FULLSWITCH_LEFT_PIN    14
+#define FULLSWITCH_RIGHT_PIN    7
+#define FULLSWITCH_SELECT_PIN  19
+#define FULLSWITCH_COIN_PIN    20
+#define FULLSWITCH_FIRE_1_PIN  15
+#define FULLSWITCH_FIRE_2_PIN   6
+#define FULLSWITCH_FIRE_3_PIN  18
+#define FULLSWITCH_FIRE_4_PIN   5
 #define FULLSWITCH_FIRE_5_PIN  21
-#define FULLSWITCH_FIRE_6_PIN  18 
-#define FULLSWITCH_FIRE_7_PIN  22 
+#define FULLSWITCH_FIRE_6_PIN  10
+#define FULLSWITCH_FIRE_7_PIN   9
 
 #define ATARI_PADDLE_FIRST_FIRE_PIN     FULLSWITCH_FIRE_1_PIN
 #define ATARI_PADDLE_FIRST_ANGLE_PIN    18
 #define ATARI_PADDLE_SECOND_FIRE_PIN    FULLSWITCH_FIRE_2_PIN
-#define ATARI_PADDLE_SECOND_ANGLE_PIN   22
+#define ATARI_PADDLE_SECOND_ANGLE_PIN   21
 
 // Header guard  ----------------------------------------------------------
 // TODO : move this at very beginning of this file ?
