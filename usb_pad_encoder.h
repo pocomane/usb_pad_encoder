@@ -53,9 +53,9 @@ The "USB pad encoder with Arduino"'s Authors, 2023
 
 // Advanced Configuration ---------------------------------------------------------
 
-#define SNES_LATCH_PIN  2
-#define SNES_CLOCK_PIN  3
-#define SNES_DATA_PIN   4
+#define SNES_DATA_PIN   2
+#define SNES_LATCH_PIN  3
+#define SNES_CLOCK_PIN  4
 
 #define FULLSWITCH_UP_PIN      16
 #define FULLSWITCH_DOWN_PIN     8
