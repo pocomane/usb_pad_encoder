@@ -69,7 +69,7 @@ static int read_analog( uint8_t p){
 }
 
 static void write_digital( uint8_t p, uint8_t v){
-  return analogWrite( p, v);
+  return digitalWrite( p, v);
 }
 
 static void use_hid_descriptor( uint8_t* desc, size_t len){
