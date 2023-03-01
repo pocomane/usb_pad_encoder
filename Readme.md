@@ -31,7 +31,8 @@ TODO : Draw schematics !
 
 The default pinout was chosen to make simple the creation of compact DB15 <-> USB
 adapter, like the ones in the photo, that are compatible with Neogeo AES, but
-carries also the SNES controller signals and one additional button.
+carries also one additional button, and the SNES signals (or altenatively other
+3 buttons)
 
 TODO : Add photo !
 TODO : Draw schematics !
@@ -44,10 +45,10 @@ default they are all enabled, except the `ATARI_PADDLE` that is still in
 development.
 
 - `ENABLE_SNES` - To read NES or SNES pads
-- `ENABLE_FULLSWITCH` - To read the controllers made fully of switches, like Atari 2600,
-  Commodore, Amiga, Neogeo AES, JAMMA or self-built arcade sticks. Basically it
-  supports a stick and 7 buttons.  Disabling ATARI_PADDLE other 2. ( TODO :
-  increment button count also if SNES is disabled)
+- `ENABLE_FULLSWITCH` - To read the controllers made fully of switches, like
+  Atari 2600, Commodore, Amiga, Sega Master System, Neogeo AES, JAMMA or
+  self-built arcade sticks. Basically it supports a stick/d-pad and 7 buttons.
+  Disabling `ENABLE_SNES` will add other 3 buttons.
 - `ATARI_PADDLE` - To read dual paddle controller for Atari 2600.
 
 # Auto-fire

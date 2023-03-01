@@ -67,9 +67,7 @@ The "USB pad encoder with Arduino"'s Authors, 2023
 #define FULLSWITCH_FIRE_2_PIN   6
 #define FULLSWITCH_FIRE_3_PIN  18
 #define FULLSWITCH_FIRE_4_PIN   5
-#define FULLSWITCH_FIRE_5_PIN  21
-#define FULLSWITCH_FIRE_6_PIN  10
-#define FULLSWITCH_FIRE_7_PIN   9
+#define FULLSWITCH_FIRE_5_PIN  10
 
 #define ATARI_PADDLE_FIRST_FIRE_PIN     FULLSWITCH_FIRE_1_PIN
 #define ATARI_PADDLE_FIRST_ANGLE_PIN    18
@@ -111,11 +109,22 @@ void usb_pad_encoder_step();
 #define HID_DPAD_BUTTON_LIKE 4
 #endif
 
-#ifdef ENABLE_ATARI_PADDLE
-#define HID_AXIS_ENABLE
+#ifdef ENABLE_SNES
 #define HID_BUTTONS (7 + HID_DPAD_BUTTON_LIKE)
+#else // ENABLE_SNES
+#define HID_BUTTONS (10 + HID_DPAD_BUTTON_LIKE)
+#define FULLSWITCH_FIRE_6_PIN SNES_DATA_PIN
+#define FULLSWITCH_FIRE_7_PIN SNES_LATCH_PIN
+#define FULLSWITCH_FIRE_8_PIN SNES_CLOCK_PIN
+#endif // ENABLE_SNES
+
+// These are needed to align the HID report fields to the gamepad_status_t ones
+#ifdef USE_HAT_FOR_DPAD
+#define HID_BUTTON_OFFSET    6
+#define HID_BUTTON_PADDING  (20 - HID_BUTTON_OFFSET - HID_BUTTONS)
 #else
-#define HID_BUTTONS (9 + HID_DPAD_BUTTON_LIKE)
+#define HID_BUTTON_OFFSET    2
+#define HID_BUTTON_PADDING  (16 - HID_BUTTON_OFFSET - HID_BUTTONS)
 #endif
 
 #define NONE   1
@@ -157,7 +166,7 @@ typedef struct {
   uint8_t fire5:   1;
   uint8_t fire6:   1;
   uint8_t fire7:   1;
-  uint8_t unused2: 1;
+  uint8_t fire8:   1;
 
 #ifdef USE_HAT_FOR_DPAD
   uint8_t	unused1: 4;
@@ -199,13 +208,6 @@ void gamepad_log(void* data){
 // USB HID wrapper ----------------------------------------------------------------
 
 #define HID_REPORT_ID (0x06)
-
-#if defined( USE_HAT_FOR_DPAD)
-#define HID_BUTTON_OFFSET   6
-#else
-#define HID_BUTTON_OFFSET   2
-#endif
-#define HID_BUTTON_PADDING  (8 + 2 + 4 - HID_BUTTONS)
 
 // The content of this array must match the definition of gamepad_status_t.
 static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
@@ -567,15 +569,22 @@ static void setup_fullswitch(void){
   setup_input( FULLSWITCH_FIRE_3_PIN, 1);
   setup_input( FULLSWITCH_FIRE_4_PIN, 1);
   setup_input( FULLSWITCH_FIRE_5_PIN, 1);
+#if defined(FULLSWITCH_FIRE_6_PIN)
   setup_input( FULLSWITCH_FIRE_6_PIN, 1);
+#endif
+#if defined(FULLSWITCH_FIRE_7_PIN)
   setup_input( FULLSWITCH_FIRE_7_PIN, 1);
+#endif
+#if defined(FULLSWITCH_FIRE_8_PIN)
+  setup_input( FULLSWITCH_FIRE_8_PIN, 1);
+#endif
 #endif // ENABLE_FULLSWITCH
 }
 
 
 static void read_fullswitch( gamepad_status_t* gamepad) {
 #if defined( ENABLE_FULLSWITCH)
-  static timed_t debounce_slot[ 13] = { 0};
+  static timed_t debounce_slot[ 14] = { 0};
 
 #define RDD( I, P) button_debounce( debounce_slot + (I), !read_digital( P ))
   gamepad->up |=    RDD( 0, FULLSWITCH_UP_PIN);
@@ -589,8 +598,15 @@ static void read_fullswitch( gamepad_status_t* gamepad) {
   gamepad->fire3 |= RDD( 8, FULLSWITCH_FIRE_3_PIN);
   gamepad->fire4 |= RDD( 9, FULLSWITCH_FIRE_4_PIN);
   gamepad->fire5 |= RDD( 10, FULLSWITCH_FIRE_5_PIN);
+#if defined(FULLSWITCH_FIRE_6_PIN)
   gamepad->fire6 |= RDD( 11, FULLSWITCH_FIRE_6_PIN);
+#endif
+#if defined(FULLSWITCH_FIRE_7_PIN)
   gamepad->fire7 |= RDD( 12, FULLSWITCH_FIRE_7_PIN);
+#endif
+#if defined(FULLSWITCH_FIRE_8_PIN)
+  gamepad->fire8 |= RDD( 13, FULLSWITCH_FIRE_8_PIN);
+#endif
 #undef RDD
 #endif // ENABLE_FULLSWITCH
 }
