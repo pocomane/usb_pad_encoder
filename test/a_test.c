@@ -59,7 +59,6 @@ static void use_hid_descriptor( const uint8_t* desc, size_t len){
 }
 
 static void send_hid_report( int id, void* data, size_t len){
-  gamepad_log( data);
 }
 
 int main(){

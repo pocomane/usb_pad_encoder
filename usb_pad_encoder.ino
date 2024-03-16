@@ -79,9 +79,6 @@ static void use_hid_descriptor( uint8_t* desc, size_t len){
 
 static void send_hid_report( int id, void* data, size_t len){
   HID().SendReport( id, data, len);
-#ifdef DEBUG
-  gamepad_log( data);
-#endif
 }
 
 static void setup_first() {

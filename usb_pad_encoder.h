@@ -25,7 +25,7 @@ The "USB pad encoder with Arduino"'s Authors, 2023
 // # Usage
 // This is written as a single file library. Include it as a normal header
 // where you needed to call its functions, i.e:
-//   usb_pad_encoder_init, usb_pad_encoder_step, gamepad_log
+//   usb_pad_encoder_init, usb_pad_encoder_step
 // Moreover it must be included in a single place after the definition of the
 //   INCLUDE_IMPLEMENTION
 // macro (it will include the actual code). In such place the following
@@ -53,26 +53,43 @@ The "USB pad encoder with Arduino"'s Authors, 2023
 
 // Advanced Configuration ---------------------------------------------------------
 
-#define SNES_DATA_PIN   2
-#define SNES_LATCH_PIN  3
-#define SNES_CLOCK_PIN  4
-
 #define FULLSWITCH_UP_PIN      16
 #define FULLSWITCH_DOWN_PIN     8
 #define FULLSWITCH_LEFT_PIN    14
 #define FULLSWITCH_RIGHT_PIN    7
 #define FULLSWITCH_SELECT_PIN  19
 #define FULLSWITCH_COIN_PIN    20
-#define FULLSWITCH_FIRE_1_PIN  15
-#define FULLSWITCH_FIRE_2_PIN   6
-#define FULLSWITCH_FIRE_3_PIN  18
+#define FULLSWITCH_FIRE_1_PIN  15 // This will be used also as: ATARI_PADDLE_FIRST_FIRE_PIN
+#define FULLSWITCH_FIRE_2_PIN   6 // This will be used olso as: ATARI_PADDLE_SECOND_FIRE_PIN
+#define FULLSWITCH_FIRE_3_PIN   9
 #define FULLSWITCH_FIRE_4_PIN   5
 #define FULLSWITCH_FIRE_5_PIN  10
+#define FULLSWITCH_FIRE_6_PIN   2 // This will be used also as: SNES_DATA_PIN
+#define FULLSWITCH_FIRE_7_PIN   3 // This will be used also as: SNES_LATCH_PIN
+#define FULLSWITCH_FIRE_8_PIN   4 // This will be used also as: SNES_CLOCK_PIN or SNES_DATA_PIN
+#define FULLSWITCH_FIRE_9_PIN  18 // Must be Analog - This will be used also as: ATARI_PADDLE_FIRST_ANGLE_PIN or SNES_DATA_PIN
+#define FULLSWITCH_FIRE_10_PIN 21 // Must be Analog - This will be used also as: ATARI_PADDLE_SECOND_ANGLE_PIN or SNES_LATCH_PIN
 
-#define ATARI_PADDLE_FIRST_FIRE_PIN     FULLSWITCH_FIRE_1_PIN
-#define ATARI_PADDLE_FIRST_ANGLE_PIN    18
-#define ATARI_PADDLE_SECOND_FIRE_PIN    FULLSWITCH_FIRE_2_PIN
-#define ATARI_PADDLE_SECOND_ANGLE_PIN   21
+/*
+// Old Jamma Coin Op Adapter
+// NOTE atari and snes must be disabled
+#define FULLSWITCH_UP_PIN       4
+#define FULLSWITCH_DOWN_PIN     5
+#define FULLSWITCH_LEFT_PIN     6
+#define FULLSWITCH_RIGHT_PIN    7
+#define FULLSWITCH_SELECT_PIN   3
+#define FULLSWITCH_COIN_PIN     2
+#define FULLSWITCH_FIRE_1_PIN   8
+#define FULLSWITCH_FIRE_2_PIN   9
+#define FULLSWITCH_FIRE_3_PIN  10
+#define FULLSWITCH_FIRE_4_PIN  16
+#define FULLSWITCH_FIRE_5_PIN  15
+#define FULLSWITCH_FIRE_6_PIN  14
+#define FULLSWITCH_FIRE_7_PIN  18
+#define FULLSWITCH_FIRE_8_PIN  19
+#define FULLSWITCH_FIRE_9_PIN  18 // NOT USED / DISABLE ENABLE_ATARI_PADDLE
+#define FULLSWITCH_FIRE_10_PIN 21 // NOT USED / DISABLE ENABLE_ATARI_PADDLE
+*/
 
 // Header guard  ----------------------------------------------------------
 // TODO : move this at very beginning of this file ?
@@ -86,7 +103,6 @@ The "USB pad encoder with Arduino"'s Authors, 2023
 #include <stdint.h>
 #include <string.h>
 
-void gamepad_log(void* status);
 void usb_pad_encoder_init();
 void usb_pad_encoder_step();
 
@@ -103,28 +119,55 @@ void usb_pad_encoder_step();
 #define HID_DESCRIPTOR_ATTRIBUTE
 #endif
 
+#ifdef ENABLE_FULLSWITCH
+#else // ENABLE_FULLSWITCH
+#error fullswitch can not be turned of currently
+#endif // ENABLE_FULLSWITCH
+
 #ifdef USE_HAT_FOR_DPAD
-#define HID_DPAD_BUTTON_LIKE 0
-#else
-#define HID_DPAD_BUTTON_LIKE 4
-#endif
+#define HID_BUTTON_OFFSET_DPAD  4
+#define HID_BUTTON_PADDING_DPAD 0
+#define HID_AXIS_DPAD           0
+#else // USE_HAT_FOR_DPAD
+#define HID_BUTTON_OFFSET_DPAD  0
+#define HID_BUTTON_PADDING_DPAD 0
+#define HID_AXIS_DPAD           0
+#endif // USE_HAT_FOR_DPAD
 
 #ifdef ENABLE_SNES
-#define HID_BUTTONS (7 + HID_DPAD_BUTTON_LIKE)
+#define SNES_DATA_PIN   FULLSWITCH_FIRE_6_PIN
+#define SNES_LATCH_PIN  FULLSWITCH_FIRE_7_PIN
+#define SNES_CLOCK_PIN  FULLSWITCH_FIRE_8_PIN
+#define HID_BUTTON_OFFSET_SNES  0
+#define HID_BUTTON_PADDING_SNES 3
+#define HID_AXIS_SNES           0
 #else // ENABLE_SNES
-#define HID_BUTTONS (10 + HID_DPAD_BUTTON_LIKE)
-#define FULLSWITCH_FIRE_6_PIN SNES_DATA_PIN
-#define FULLSWITCH_FIRE_7_PIN SNES_LATCH_PIN
-#define FULLSWITCH_FIRE_8_PIN SNES_CLOCK_PIN
+#define HID_BUTTON_OFFSET_SNES  0
+#define HID_BUTTON_PADDING_SNES 0
+#define HID_AXIS_SNES           0
 #endif // ENABLE_SNES
 
+#ifdef ENABLE_ATARI_PADDLE
+#define ATARI_PADDLE_FIRST_FIRE_PIN    FULLSWITCH_FIRE_1_PIN
+#define ATARI_PADDLE_FIRST_ANGLE_PIN   FULLSWITCH_FIRE_9_PIN
+#define ATARI_PADDLE_SECOND_FIRE_PIN   FULLSWITCH_FIRE_2_PIN
+#define ATARI_PADDLE_SECOND_ANGLE_PIN  FULLSWITCH_FIRE_10_PIN
+#define HID_BUTTON_OFFSET_ATARI_PADDLE  0
+#define HID_BUTTON_PADDING_ATARI_PADDLE 2
+#define HID_AXIS_ATARI_PADDLE 2
+#else // ENABLE_ATARI_PADDLE
+#define HID_BUTTON_OFFSET_ATARI_PADDLE  0
+#define HID_BUTTON_PADDING_ATARI_PADDLE 0
+#define HID_AXIS_ATARI_PADDLE 0
+#endif // ENABLE_ATARI_PADDLE
+
 // These are needed to align the HID report fields to the gamepad_status_t ones
-#ifdef USE_HAT_FOR_DPAD
-#define HID_BUTTON_OFFSET    6
-#define HID_BUTTON_PADDING  (20 - HID_BUTTON_OFFSET - HID_BUTTONS)
-#else
-#define HID_BUTTON_OFFSET    2
-#define HID_BUTTON_PADDING  (16 - HID_BUTTON_OFFSET - HID_BUTTONS)
+#define HID_BUTTON_OFFSET  ( HID_BUTTON_OFFSET_DPAD + HID_BUTTON_OFFSET_SNES + HID_BUTTON_OFFSET_ATARI_PADDLE)
+#define HID_BUTTON_PADDING ( HID_BUTTON_PADDING_DPAD + HID_BUTTON_PADDING_SNES + HID_BUTTON_PADDING_ATARI_PADDLE)
+#define HID_AXIS           ( HID_AXIS_DPAD + HID_AXIS_SNES + HID_AXIS_ATARI_PADDLE)
+#define HID_BUTTONS        ( 16 - HID_BUTTON_OFFSET - HID_BUTTON_PADDING)
+#if HID_BUTTONS < 0
+#error wrong button configuration
 #endif
 
 #define NONE   1
@@ -144,66 +187,50 @@ typedef struct{
 
 typedef struct {
 
-#ifdef HID_AXIS_ENABLE
-  int16_t	axisX;
-  int16_t	axisY;
-  int16_t	unusedA;
-  int16_t	unusedB;
-#endif
-
-  uint8_t unused0: 2;
   uint8_t up:      1;
   uint8_t down:    1;
   uint8_t left:    1;
   uint8_t right:   1;
   uint8_t select:  1;
   uint8_t start:   1;
-
   uint8_t fire1:   1;
   uint8_t fire2:   1;
+
   uint8_t fire3:   1;
   uint8_t fire4:   1;
   uint8_t fire5:   1;
+
+  // The buttons that are not used must always be at the end, so they can be
+  // masked through padding in the HID descriptot
+#if !defined( ENABLE_SNES)
   uint8_t fire6:   1;
   uint8_t fire7:   1;
   uint8_t fire8:   1;
+#endif
+#if !defined( ENABLE_ATARI_PADDLE)
+  uint8_t fire9:   1;
+  uint8_t fire10:  1;
+#endif
+#if defined( ENABLE_SNES)
+  uint8_t fire6:   1;
+  uint8_t fire7:   1;
+  uint8_t fire8:   1;
+#endif
+#if defined( ENABLE_ATARI_PADDLE)
+  uint8_t fire9:   1;
+  uint8_t fire10:  1;
+#endif
 
 #ifdef USE_HAT_FOR_DPAD
-  uint8_t	unused1: 4;
   uint8_t	direction: 4;
+  uint8_t	unused1: 4;
 #endif
+
+#if HID_AXIS > 0
+  int16_t	axis[HID_AXIS];
+#endif // HID_AXIS
 
 } gamepad_status_t;
-
-void gamepad_log(void* data){
-  gamepad_status_t* status = (gamepad_status_t*) data;
-  LOG(1, "gamepad report state "
-
-      "| %x%x%x%x "
-      "| %x%x%x "
-      "| %x%x "
-      "| %x%x%x%x "
-#ifdef USE_HAT_FOR_DPAD
-      "# %x "
-#endif
-#ifdef HID_AXIS_ENABLE
-      "> %d %d "
-#endif
-      ": %lu %lu",
-
-      status->fire1, status->fire2, status->fire3, status->fire4,
-      status->fire5, status->fire6, status->fire7,
-      status->start, status->select,
-      status->up, status->down, status->left, status->right,
-#ifdef USE_HAT_FOR_DPAD
-      status->direction,
-#endif
-#ifdef HID_AXIS_ENABLE
-      status->axisX, status->axisY,
-#endif
-      get_elasped_microsecond() - current_time_step(), current_time_step()
-   );
-}
 
 // USB HID wrapper ----------------------------------------------------------------
 
@@ -217,21 +244,6 @@ static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
   0x09, 0x04,               //  USAGE (Joystick)
   0xa1, 0x01,               //  COLLECTION (Application)
     0x85, HID_REPORT_ID,    //    REPORT_ID
-
-#ifdef HID_AXIS_ENABLE
-    // 16bit Axis
-    0x05, 0x01,             //    USAGE_PAGE (Generic Desktop)
-    // 0xa1, 0x00,             //    COLLECTION (Physical)
-    0x09, 0x30,             //    USAGE (X)
-    0x09, 0x31,             //    USAGE (Y)
-    0x09, 0x33,             //    USAGE (Rx)
-    0x09, 0x34,             //    USAGE (Ry)
-      0x16, 0x00, 0x80,     //      LOGICAL_MINIMUM (-32768)
-      0x26, 0xFF, 0x7F,     //      LOGICAL_MAXIMUM (32767)
-    0x75, 0x10,             //    REPORT_SIZE (16)
-    0x95, 0x4,              //    REPORT_COUNT (4)
-    0x81, 0x02,             //    INPUT (Data,Var,Abs)
-#endif
 
 #if HID_BUTTON_OFFSET > 0
     // Mask leading bits
@@ -273,6 +285,27 @@ static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
     0x81, 0x02,             //    INPUT (Data,Var,Abs)
 #endif
 
+#if HID_AXIS > 0
+    // 16bit Axis
+    0x05, 0x01,             //    USAGE_PAGE (Generic Desktop)
+    // 0xa1, 0x00,             //    COLLECTION (Physical)
+    0x09, 0x30,             //    USAGE (X)
+#if HID_AXIS > 1
+    0x09, 0x31,             //    USAGE (Y)
+#endif
+#if HID_AXIS > 2
+    0x09, 0x33,             //    USAGE (Rx)
+#endif
+#if HID_AXIS > 3
+    0x09, 0x34,             //    USAGE (Ry)
+#endif
+      0x16, 0x00, 0x80,     //      LOGICAL_MINIMUM (-32768)
+      0x26, 0xFF, 0x7F,     //      LOGICAL_MAXIMUM (32767)
+    0x75, 0x10,             //    REPORT_SIZE (16)
+    0x95, HID_AXIS,         //    REPORT_COUNT (N = HID_AXIS)
+    0x81, 0x02,             //    INPUT (Data,Var,Abs)
+#endif
+
 /*
     // 2 8bit Axis
     0x09, 0x32,             //    USAGE (Z)
@@ -288,24 +321,58 @@ static const uint8_t gamepad_hid_descriptor[] HID_DESCRIPTOR_ATTRIBUTE = {
   0xc0                      //  END_COLLECTION
 };
 
-void gamepad_init(){
-
-  use_hid_descriptor(gamepad_hid_descriptor, sizeof(gamepad_hid_descriptor));
-
-  int axis, hat = 0;
-#ifdef HID_AXIS_ENABLE
-  axis = 2;
-#endif
+void config_log(){
+  int hat = 0;
 #ifdef USE_HAT_FOR_DPAD
   hat = 1;
 #endif
-  LOG(1, "id: %d, axis: %d, offset: %d, button: %d, padding: %d, hat: %d",
-      HID_REPORT_ID, axis, HID_BUTTON_OFFSET, HID_BUTTONS, HID_BUTTON_PADDING, hat);
+  LOG(1, "configuration report id: %d | button: %d # hat: %d > axis: %d @ offset/padding: %d/%d",
+      HID_REPORT_ID, HID_BUTTONS, hat, HID_AXIS, HID_BUTTON_OFFSET, HID_BUTTON_PADDING);
+}
+
+void gamepad_log(void* data){
+  gamepad_status_t* status = (gamepad_status_t*) data;
+  config_log();
+  LOG(1, "gamepad report state "
+
+      "| %x%x "
+      "- %x%x "
+      "- %x%x%x%x "
+      "- %x%x%x "
+      "| %x%x%x%x "
+#ifdef USE_HAT_FOR_DPAD
+      "# %x "
+#endif
+#if HID_AXIS > 0
+      "> %d %d "
+#endif
+      ": %lu %lu",
+
+      status->start, status->select,
+      status->fire1, status->fire2,
+      status->fire3, status->fire4, status->fire5, status->fire6,
+      status->fire7, status->fire9, status->fire10,
+
+      status->up, status->down, status->left, status->right,
+#ifdef USE_HAT_FOR_DPAD
+      status->direction,
+#endif
+#if HID_AXIS > 0
+      status->axis[0], status->axis[1],
+#endif
+      get_elasped_microsecond() - current_time_step(), current_time_step()
+   );
+}
+
+void gamepad_init(){
+
+  use_hid_descriptor(gamepad_hid_descriptor, sizeof(gamepad_hid_descriptor));
 }
 
 void gamepad_send(gamepad_status_t *status){
 
   send_hid_report( HID_REPORT_ID, status, sizeof(*status));
+  gamepad_log( status);
 }
 
 // Common input-related routines --------------------------------------------------
@@ -569,22 +636,22 @@ static void setup_fullswitch(void){
   setup_input( FULLSWITCH_FIRE_3_PIN, 1);
   setup_input( FULLSWITCH_FIRE_4_PIN, 1);
   setup_input( FULLSWITCH_FIRE_5_PIN, 1);
-#if defined(FULLSWITCH_FIRE_6_PIN)
+#if !defined( ENABLE_SNES)
   setup_input( FULLSWITCH_FIRE_6_PIN, 1);
-#endif
-#if defined(FULLSWITCH_FIRE_7_PIN)
   setup_input( FULLSWITCH_FIRE_7_PIN, 1);
-#endif
-#if defined(FULLSWITCH_FIRE_8_PIN)
   setup_input( FULLSWITCH_FIRE_8_PIN, 1);
-#endif
+#endif // ENABLE_SNES
+#if !defined( ENABLE_ATARI_PADDLE)
+  setup_input( FULLSWITCH_FIRE_9_PIN,  1);
+  setup_input( FULLSWITCH_FIRE_10_PIN, 1);
+#endif // ENABLE_ATARI_PADDLE
 #endif // ENABLE_FULLSWITCH
 }
 
 
 static void read_fullswitch( gamepad_status_t* gamepad) {
 #if defined( ENABLE_FULLSWITCH)
-  static timed_t debounce_slot[ 14] = { 0};
+  static timed_t debounce_slot[ 16] = { 0};
 
 #define RDD( I, P) button_debounce( debounce_slot + (I), !read_digital( P ))
   gamepad->up |=    RDD( 0, FULLSWITCH_UP_PIN);
@@ -598,15 +665,15 @@ static void read_fullswitch( gamepad_status_t* gamepad) {
   gamepad->fire3 |= RDD( 8, FULLSWITCH_FIRE_3_PIN);
   gamepad->fire4 |= RDD( 9, FULLSWITCH_FIRE_4_PIN);
   gamepad->fire5 |= RDD( 10, FULLSWITCH_FIRE_5_PIN);
-#if defined(FULLSWITCH_FIRE_6_PIN)
+#if !defined( ENABLE_SNES)
   gamepad->fire6 |= RDD( 11, FULLSWITCH_FIRE_6_PIN);
-#endif
-#if defined(FULLSWITCH_FIRE_7_PIN)
   gamepad->fire7 |= RDD( 12, FULLSWITCH_FIRE_7_PIN);
-#endif
-#if defined(FULLSWITCH_FIRE_8_PIN)
   gamepad->fire8 |= RDD( 13, FULLSWITCH_FIRE_8_PIN);
-#endif
+#endif // ENABLE_SNES
+#if !defined( ENABLE_ATARI_PADDLE)
+  gamepad->fire9 |= RDD( 14, FULLSWITCH_FIRE_9_PIN);
+  gamepad->fire10|= RDD( 15, FULLSWITCH_FIRE_10_PIN);
+#endif // ENABLE_ATARI_PADDLE
 #undef RDD
 #endif // ENABLE_FULLSWITCH
 }
@@ -655,8 +722,8 @@ static void read_atari_paddle( gamepad_status_t* gamepad) {
   gamepad->fire1 |= RDD( 0, ATARI_PADDLE_FIRST_FIRE_PIN);
   gamepad->fire2 |= RDD( 1, ATARI_PADDLE_SECOND_FIRE_PIN);
 #undef RDD
-  gamepad->axisX  = read_analog( ATARI_PADDLE_FIRST_ANGLE_PIN);
-  gamepad->axisY  = read_analog( ATARI_PADDLE_SECOND_ANGLE_PIN);
+  gamepad->axis[0] = read_analog( ATARI_PADDLE_FIRST_ANGLE_PIN);
+  gamepad->axis[1] = read_analog( ATARI_PADDLE_SECOND_ANGLE_PIN);
 #endif // ENABLE_ATARI_PADDLE
 }
 
@@ -666,12 +733,17 @@ static void process_atari_axis( gamepad_status_t* gamepad) {
   static int16_t second_axis_history[10] = {0};
 
   // Moving average to reduce noise on the analog readinng
-  gamepad->axisX = moving_average(first_axis_history,  10, gamepad->axisX);
-  gamepad->axisY = moving_average(second_axis_history, 10, gamepad->axisY);
+  gamepad->axis[0] = moving_average(first_axis_history,  10, gamepad->axis[0]);
+  gamepad->axis[1] = moving_average(second_axis_history, 10, gamepad->axis[1]);
 
   // Axis calibration
-  gamepad->axisX = (gamepad->axisX - 500) << 6;
-  gamepad->axisY = (gamepad->axisY - 500) << 5;
+  gamepad->axis[0] = (gamepad->axis[0] - 500) << 6;
+  gamepad->axis[1] = (gamepad->axis[1] - 500) << 5;
+
+  //// Debugging
+  //gamepad->axis[0] = gamepad->axis[0] > 256 ? 32000 : -32000;
+  //gamepad->axis[1] = gamepad->axis[1] > 256 ? 32000 : -32000;
+
 #endif // ENABLE_ATARI_PADDLE
 }
 
@@ -759,6 +831,7 @@ void usb_pad_encoder_init(){
   setup_atari_paddle();
   setup_snes();
   next_time_step();
+  config_log();
 }
 
 void usb_pad_encoder_step(){
